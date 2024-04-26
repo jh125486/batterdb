@@ -1,0 +1,64 @@
+linters-settings:
+  govet:
+    enable-all: true
+  gocyclo:
+    min-complexity: 10
+  dupl:
+    threshold: 100
+  lll:
+    line-length: 140
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  misspell:
+    locale: US
+  gocritic:
+      enable-all: true
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+linters:
+  enable:
+    - bodyclose
+    - errcheck
+    - funlen
+    - lll
+    - godot
+    - goconst
+    - gocyclo
+    - goimports
+    - revive
+    - gofmt
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - nakedret
+    - prealloc
+    - staticcheck
+    - unused
+    - testpackage
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - whitespace
+    - tparallel
+    - thelper
+    - testifylint
+    - stylecheck
+    - sloglint
+    - paralleltest
+    - noctx
+
+issues:
+  exclude-rules:
+    - path: _test\.go$
+      linters:
+        - govet
+        - funlen
+        - gocyclo
+  exclude-dirs:
+    - testdata
