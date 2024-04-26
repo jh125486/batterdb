@@ -2,6 +2,7 @@
 [![Go Report](https://goreportcard.com/badge/github.com/jh125486/batterdb)](https://goreportcard.com/report/github.com/jh125486/batterdb)
 [![Go Coverage](https://github.com/jh125486/batterdb/wiki/coverage.svg)](https://github.com/jh125486/batterdb/wiki/Test-coverage-report)
 [![golangci-lint](https://github.com/jh125486/batterdb/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/jh125486/batterdb/actions/workflows/golangci-lint.yml)
+[![CodeQL](https://github.com/jh125486/batterdb/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/jh125486/batterdb/actions/workflows/github-code-scanning/codeql)
 ```
 ______       _   _           ____________
 | ___ \     | | | |          |  _  \ ___ \
