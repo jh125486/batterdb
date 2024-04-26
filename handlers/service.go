@@ -60,11 +60,6 @@ func New() (*Service, huma.API) {
 		Repository: repository.New(),
 	}
 
-	if err := s.LoadRepositoryFromFile(repofile); err != nil {
-		slog.Error("Failed to load repository", slog.String("err", err.Error()))
-		os.Exit(1)
-	}
-
 	mux := http.NewServeMux()
 	config := huma.DefaultConfig("BatterDB", "1.0.0")
 	api := humago.New(mux, config)
@@ -89,6 +84,10 @@ func (s *Service) Start(port int) error {
 	s.Port = port
 	s.server.Addr = fmt.Sprintf("127.0.0.1:%d", s.Port)
 	s.initMsg()
+	if err := s.LoadRepositoryFromFile(repofile); err != nil {
+		slog.Error("Failed to load repository", slog.String("err", err.Error()))
+		os.Exit(1)
+	}
 
 	return s.server.ListenAndServe()
 }
@@ -250,7 +249,13 @@ func (s *Service) SaveRepositoryToFile(filename string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
+
+	defer func() {
+		slog.Info("Repository saved to disk", slog.Int("databases", len(s.Repository.Databases)))
+	}()
 
 	return gob.NewEncoder(file).Encode(s.Repository)
 }
@@ -259,6 +264,7 @@ func (s *Service) LoadRepositoryFromFile(filename string) error {
 	if !s.PersistDB {
 		return nil
 	}
+
 	file, err := os.Open(filename)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -268,7 +274,12 @@ func (s *Service) LoadRepositoryFromFile(filename string) error {
 		}
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
+	defer func() {
+		slog.Info("Repository loaded from disk", slog.Int("databases", len(s.Repository.Databases)))
+	}()
 
 	return gob.NewDecoder(file).Decode(s.Repository)
 }
