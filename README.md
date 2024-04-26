@@ -1,7 +1,7 @@
 [![Go Reference](https://pkg.go.dev/badge/image)](https://pkg.go.dev/github.com/jh125486/batterdb)
 [![Go Report](https://goreportcard.com/badge/github.com/jh125486/batterdb)](https://goreportcard.com/report/github.com/jh125486/batterdb)
 [![Go Coverage](https://github.com/jh125486/batterdb/wiki/coverage.svg)](https://github.com/jh125486/batterdb/wiki/Test-coverage-report)
-
+[![golangci-lint](https://github.com/jh125486/batterdb/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/jh125486/batterdb/actions/workflows/golangci-lint.yml)
 ```
 ______       _   _           ____________
 | ___ \     | | | |          |  _  \ ___ \
