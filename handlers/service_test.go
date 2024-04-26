@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/stretchr/testify/assert"
@@ -18,11 +19,87 @@ import (
 
 func TestService_Start(t *testing.T) {
 	t.Parallel()
-	svc := handlers.New()
-	go func() {
-		_ = svc.Start(0)
-	}()
-	require.NoError(t, svc.Shutdown())
+
+	canceledCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	cancel()
+
+	test := []struct {
+		name            string
+		opts            []handlers.Option
+		shutdownCtx     context.Context
+		wait            time.Duration
+		wantStartErr    assert.ErrorAssertionFunc
+		wantShutdownErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "no persist",
+			opts: []handlers.Option{
+				handlers.WithPort(0),
+			},
+			shutdownCtx:     context.Background(),
+			wait:            10 * time.Millisecond,
+			wantStartErr:    assert.NoError,
+			wantShutdownErr: assert.NoError,
+		},
+		{
+			name: "insane port",
+			opts: []handlers.Option{
+				handlers.WithPort(-666),
+			},
+			shutdownCtx:     context.Background(),
+			wait:            10 * time.Millisecond,
+			wantStartErr:    assert.Error,
+			wantShutdownErr: assert.NoError,
+		},
+		{
+			name: "persist",
+			opts: []handlers.Option{
+				handlers.WithPersistDB(true),
+				handlers.WithPort(0),
+			},
+			shutdownCtx:     context.Background(),
+			wait:            10 * time.Millisecond,
+			wantStartErr:    assert.NoError,
+			wantShutdownErr: assert.NoError,
+		},
+		{
+			name: "bad repofile",
+			opts: []handlers.Option{
+				handlers.WithPersistDB(true),
+				handlers.WithPort(0),
+				handlers.WithRepofile(""),
+			},
+			shutdownCtx:     context.Background(),
+			wait:            10 * time.Millisecond,
+			wantStartErr:    assert.NoError,
+			wantShutdownErr: assert.Error,
+		},
+		{
+			name:            "no wait for shutdown",
+			shutdownCtx:     context.Background(),
+			wait:            0,
+			wantStartErr:    assert.NoError,
+			wantShutdownErr: assert.NoError,
+		},
+		{
+			name:            "canceled context",
+			shutdownCtx:     canceledCtx,
+			wait:            100 * time.Millisecond,
+			wantStartErr:    assert.NoError,
+			wantShutdownErr: assert.NoError,
+		},
+	}
+	for _, tt := range test {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			svc := handlers.New(tt.opts...)
+			go func() {
+				tt.wantStartErr(t, svc.Start())
+			}()
+			time.Sleep(tt.wait)
+			tt.wantShutdownErr(t, svc.Shutdown(tt.shutdownCtx))
+		})
+	}
 }
 
 func TestService_PersistRepoToFile(t *testing.T) {
@@ -63,10 +140,11 @@ func TestService_PersistRepoToFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			svc := handlers.New()
-			svc.PersistDB = tt.persist
-			tt.args.filename = filepath.Join(t.TempDir(), tt.args.filename)
-			tt.wantErr(t, svc.PersistRepoToFile(tt.args.filename))
+			svc := handlers.New(
+				handlers.WithPersistDB(tt.persist),
+				handlers.WithRepofile(filepath.Join(t.TempDir(), tt.args.filename)),
+			)
+			tt.wantErr(t, svc.PersistRepoToFile())
 		})
 	}
 }
@@ -130,9 +208,11 @@ func TestService_LoadRepoFromFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			svc := handlers.New()
-			svc.PersistDB = tt.persist
-			err := svc.LoadRepoFromFile(tt.args.filename)
+			svc := handlers.New(
+				handlers.WithPersistDB(tt.persist),
+				handlers.WithRepofile(tt.args.filename),
+			)
+			err := svc.LoadRepoFromFile()
 			if tt.wantErr(t, err); err != nil {
 				return
 			}

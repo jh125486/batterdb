@@ -112,10 +112,6 @@ func (r *Repository) Persist(filename string) error {
 		_ = file.Close()
 	}()
 
-	defer func() {
-		slog.Info("Repository saved to disk", slog.Int("databases", len(r.Databases)))
-	}()
-
 	return gob.NewEncoder(file).Encode(r)
 }
 
@@ -124,16 +120,13 @@ func (r *Repository) Load(filename string) error {
 	if err != nil {
 		if os.IsNotExist(err) {
 			// File doesn't exist yet.
-			slog.Info("No repository file found")
+			slog.Info("No repository file found", slog.String("filename", filename))
 			return nil
 		}
 		return err
 	}
 	defer func() {
 		_ = file.Close()
-	}()
-	defer func() {
-		slog.Info("Repository loaded from disk", slog.Int("databases", len(r.Databases)))
 	}()
 
 	return gob.NewDecoder(file).Decode(r)

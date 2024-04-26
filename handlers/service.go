@@ -2,13 +2,16 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/alecthomas/units"
@@ -30,38 +33,52 @@ ______       _   _           ____________
 \____/ \__,_|\__|\__\___|_|  |___/ \____/
 `
 
-const repofile = ".repository.gob"
+type (
+	Service struct {
+		Repository *repository.Repository
+		API        huma.API
 
-type Service struct {
-	StartedAt  time.Time
-	Repository *repository.Repository
-	API        huma.API
-	server     *http.Server
-	Version    string
-	GoVersion  string
-	Platform   string
-	PersistDB  bool
-	PID        int
-	Port       int
-}
+		server    *http.Server
+		startedAt time.Time
+		version   string
+		goVersion string
+		platform  string
+		repofile  string
+		port      atomic.Int32
+		persistDB bool
+		pid       int
+	}
+	Option func(*Service)
+)
 
-func New() *Service {
+func New(opts ...Option) *Service {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		panic("couldn't read build info")
 	}
 
+	// defaults.
 	s := &Service{
-		Version:    info.Main.Version,
-		GoVersion:  info.GoVersion,
-		Platform:   fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH),
-		PID:        os.Getpid(),
-		StartedAt:  time.Now().UTC(),
+		version:    info.Main.Version,
+		goVersion:  info.GoVersion,
+		platform:   fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH),
+		pid:        os.Getpid(),
+		startedAt:  time.Now().UTC(),
 		Repository: repository.New(),
+		repofile:   ".repository.gob",
 	}
-
+	for _, opt := range opts {
+		opt(s)
+	}
 	mux := http.NewServeMux()
 	config := huma.DefaultConfig("BatterDB", "1.0.0")
+	config.Info.Contact = &huma.Contact{
+		Name:  "Jacob Hochstetler",
+		URL:   "https://github.com/jh125486",
+		Email: "jacob.hochstetler@gmail.com",
+	}
+	config.Info.Description = "A simple in-memory stack database."
+
 	s.API = humago.New(mux, config)
 	s.AddRoutes(s.API)
 	s.server = &http.Server{
@@ -74,22 +91,53 @@ func New() *Service {
 	return s
 }
 
+func WithPort(port int) Option {
+	return func(s *Service) {
+		s.port.Store(int32(port))
+	}
+}
+
+func WithRepofile(repofile string) Option {
+	return func(s *Service) {
+		s.repofile = repofile
+	}
+}
+
+func WithPersistDB(persist bool) Option {
+	return func(s *Service) {
+		s.persistDB = persist
+	}
+}
+
 func (s *Service) AddRoutes(api huma.API) {
 	s.registerMain(api)
 	s.registerDatabases(api)
 	s.registerStacks(api)
 }
 
-func (s *Service) Start(port int) error {
-	s.Port = port
-	s.server.Addr = fmt.Sprintf("127.0.0.1:%d", s.Port)
-	s.initMsg()
-	if err := s.LoadRepoFromFile(repofile); err != nil {
-		slog.Error("Failed to load repository", slog.String("err", err.Error()))
-		os.Exit(1)
+func (s *Service) Port() int32 { return s.port.Load() }
+
+func (s *Service) Start() error {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.Port()))
+	if err != nil {
+		return fmt.Errorf("failed to start listener: %w", err)
 	}
 
-	return s.server.ListenAndServe()
+	// Save the actual port from the listener.
+	s.port.Store(int32(listener.Addr().(*net.TCPAddr).Port))
+	s.server.Addr = fmt.Sprintf("127.0.0.1:%d", s.port.Load())
+
+	if err := s.LoadRepoFromFile(); err != nil {
+		return fmt.Errorf("failed to load repository: %w", err)
+	}
+
+	s.initMsg()
+
+	if err := s.server.Serve(listener); !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+
+	return nil
 }
 
 // OpenAPI return the OpenAPI spec as a string in the requested version.
@@ -108,9 +156,9 @@ func (s *Service) OpenAPI(openapi string) []byte {
 	}
 }
 
-func (s *Service) Shutdown() error {
+func (s *Service) Shutdown(ctx context.Context) error {
 	// Create a deadline to wait for.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	// Doesn't block if no connections, but will otherwise wait until the timeout deadline.
@@ -118,7 +166,11 @@ func (s *Service) Shutdown() error {
 		return err
 	}
 
-	return s.PersistRepoToFile(repofile)
+	if err := s.PersistRepoToFile(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *Service) registerMain(api huma.API) {
@@ -209,7 +261,6 @@ func (s *Service) registerStacks(api huma.API) {
 		Tags:        []string{"Stack Operations"},
 	}, s.FlushDatabaseStackHandler)
 }
-
 func (s *Service) registerStacksCRUD(api huma.API) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-stack",
@@ -250,23 +301,34 @@ func (s *Service) initMsg() {
 	for _, l := range strings.Split(logo, "\n") {
 		slog.Info(l)
 	}
-	slog.Info(fmt.Sprintf("Version:      %v", s.Version))
-	slog.Info(fmt.Sprintf("Go version:   %v", s.GoVersion))
-	slog.Info(fmt.Sprintf("Host:         %v", s.Platform))
-	slog.Info(fmt.Sprintf("Port:         %v", s.Port))
-	slog.Info(fmt.Sprintf("PID:          %v", s.PID))
+	slog.Info(fmt.Sprintf("Version:      %v", s.version))
+	slog.Info(fmt.Sprintf("Go version:   %v", s.goVersion))
+	slog.Info(fmt.Sprintf("Host:         %v", s.platform))
+	slog.Info(fmt.Sprintf("Port:         %v", s.Port()))
+	slog.Info(fmt.Sprintf("PID:          %v", s.pid))
+	if s.persistDB {
+		slog.Info(fmt.Sprintf("Loaded repo:  %v", s.repofile))
+		slog.Info(fmt.Sprintf("Databases:    %v", s.Repository.Len()))
+	}
+	slog.Info(fmt.Sprintf("Serving:      http://%v", s.server.Addr))
+	slog.Info(fmt.Sprintf("Docs:         http://%v/docs#/", s.server.Addr))
 }
 
-func (s *Service) PersistRepoToFile(filename string) error {
-	if !s.PersistDB {
+func (s *Service) PersistRepoToFile() error {
+	if !s.persistDB {
 		return nil
 	}
-	return s.Repository.Persist(filename)
+	if err := s.Repository.Persist(s.repofile); err != nil {
+		return err
+	}
+	slog.Info("Repository saved to disk", slog.Int("databases", s.Repository.Len()))
+
+	return nil
 }
 
-func (s *Service) LoadRepoFromFile(filename string) error {
-	if !s.PersistDB {
+func (s *Service) LoadRepoFromFile() error {
+	if !s.persistDB {
 		return nil
 	}
-	return s.Repository.Load(filename)
+	return s.Repository.Load(s.repofile)
 }

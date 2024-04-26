@@ -31,12 +31,12 @@ func (s *Service) StatusHandler(_ context.Context, _ *struct{}) (*StatusOutput, 
 	runtime.ReadMemStats(&mem)
 	out := new(StatusOutput)
 	out.Body.Code = http.StatusText(http.StatusOK)
-	out.Body.Version = s.Version
-	out.Body.GoVersion = s.GoVersion
-	out.Body.Host = s.Platform
-	out.Body.PID = s.PID
-	out.Body.StartedAt = s.StartedAt
-	out.Body.RunningFor = time.Since(s.StartedAt).Seconds()
+	out.Body.Version = s.version
+	out.Body.GoVersion = s.goVersion
+	out.Body.Host = s.platform
+	out.Body.PID = s.pid
+	out.Body.StartedAt = s.startedAt
+	out.Body.RunningFor = time.Since(s.startedAt).Seconds()
 	out.Body.NumberGoroutines = runtime.NumGoroutine()
 	out.Body.MemoryAlloc = units.Base2Bytes(mem.Alloc).Round(1).String()
 

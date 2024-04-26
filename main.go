@@ -1,6 +1,15 @@
+// batterdb is a stack-based database engine.
+// Databases are created with a unique name and can contain multiple stacks.
+// Stacks are created within a database and can contain multiple elements.
+// Docs are served at /docs.
+
+//In the case of **batterdb**, this way is by pushes **_Elements_** in **_Stacks_,** so you only have access to the _Element_ on top,
+//keeping the rest of them underneath.
+
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"log/slog"
@@ -23,8 +32,10 @@ func main() {
 	flag.StringVar(&openapi, "openapi", "", "Print the OpenAPI spec version: 3.1 and 3.0.3 available.")
 	flag.Parse()
 
-	svc := handlers.New()
-	svc.PersistDB = persistDB // super lazy options setting here.
+	svc := handlers.New(
+		handlers.WithPort(port),
+		handlers.WithPersistDB(persistDB),
+	)
 
 	if openapi != "" {
 		_, _ = os.Stdout.Write(svc.OpenAPI(openapi))
@@ -37,8 +48,8 @@ func main() {
 
 	// Run the service in a goroutine so that it doesn't block.
 	go func() {
-		if err := svc.Start(port); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("listening error", slog.String("err", err.Error()))
+		if err := svc.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("failed to start service", slog.String("err", err.Error()))
 			os.Exit(1)
 		}
 	}()
@@ -47,7 +58,7 @@ func main() {
 	<-stop
 
 	// Begin graceful shutdown.
-	if err := svc.Shutdown(); err != nil {
+	if err := svc.Shutdown(context.Background()); err != nil {
 		slog.Error("failed to gracefully shutdown", slog.String("err", err.Error()))
 		os.Exit(1)
 	}

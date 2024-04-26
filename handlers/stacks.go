@@ -109,7 +109,7 @@ type (
 )
 
 func (s *Service) ShowDatabaseStackHandler(_ context.Context, input *DatabaseStackInput) (*StackOutput, error) {
-	stack, err := s.stack(input.DatabaseID, input.StackID)
+	_, stack, err := s.stack(input.DatabaseID, input.StackID)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ type StackElement struct {
 }
 
 func (s *Service) PeekDatabaseStackHandler(_ context.Context, input *DatabaseStackInput) (*StackElement, error) {
-	stack, err := s.stack(input.DatabaseID, input.StackID)
+	_, stack, err := s.stack(input.DatabaseID, input.StackID)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ type PushDatabaseStackElementInput struct {
 }
 
 func (s *Service) PushDatabaseStackHandler(_ context.Context, input *PushDatabaseStackElementInput) (*StackElement, error) {
-	stack, err := s.stack(input.DatabaseID, input.StackID)
+	_, stack, err := s.stack(input.DatabaseID, input.StackID)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ type PopDatabaseStackElementOutput struct {
 }
 
 func (s *Service) PopDatabaseStackHandler(_ context.Context, input *DatabaseStackInput) (*PopDatabaseStackElementOutput, error) {
-	stack, err := s.stack(input.DatabaseID, input.StackID)
+	_, stack, err := s.stack(input.DatabaseID, input.StackID)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (s *Service) PopDatabaseStackHandler(_ context.Context, input *DatabaseStac
 }
 
 func (s *Service) FlushDatabaseStackHandler(_ context.Context, input *DatabaseStackInput) (*StackOutput, error) {
-	stack, err := s.stack(input.DatabaseID, input.StackID)
+	_, stack, err := s.stack(input.DatabaseID, input.StackID)
 	if err != nil {
 		return nil, err
 	}
@@ -213,26 +213,26 @@ func (s *Service) FlushDatabaseStackHandler(_ context.Context, input *DatabaseSt
 }
 
 func (s *Service) DeleteDatabaseStackHandler(_ context.Context, input *DatabaseStackInput) (*struct{}, error) {
-	stack, err := s.stack(input.DatabaseID, input.StackID)
+	db, stack, err := s.stack(input.DatabaseID, input.StackID)
 	if err != nil {
 		return nil, err
 	}
-	if err := stack.Database().Drop(input.StackID); err != nil {
+	if err := db.Drop(stack.ID.String()); err != nil {
 		return nil, err
 	}
 
 	return nil, nil
 }
 
-func (s *Service) stack(dbID, sID string) (*repository.Stack, error) {
+func (s *Service) stack(dbID, sID string) (*repository.Database, *repository.Stack, error) {
 	db, err := s.Repository.Database(dbID)
 	if err != nil {
-		return nil, huma.Error404NotFound("database not found", err)
+		return nil, nil, huma.Error404NotFound("database not found", err)
 	}
 	stack, err := db.Stack(sID)
 	if err != nil {
-		return nil, huma.Error404NotFound("stack not found", err)
+		return nil, nil, huma.Error404NotFound("stack not found", err)
 	}
 
-	return stack, nil
+	return db, stack, nil
 }

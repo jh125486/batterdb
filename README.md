@@ -71,6 +71,22 @@ An **_Element_** is a piece of data that can be pushed into a _Stack_, and has a
 * Object: `{}`, `{"key": "Value"}`, `{"bob":{"age":32,"married":false,"comments":{}}}`.
 * `null`.
 
+
+## Installation
+
+### Download
+
+Windows, macOS, and Linux binaries are available.
+You can download the latest release from the [releases page](/releases/latest).
+
+### Installing using Go
+
+Alternativelm, you can install the project from source by:
+
+```shell
+go install github.com/jh125486/batterdb@latest
+```
+
 ## Usage
 
 ### Command line
@@ -89,9 +105,13 @@ Usage of batterdb:
 
 ### Online documentation
 
-`batterdb` uses OpenAPI to document its API, and it's available at [http://localhost:1205/docs](http://localhost:1205/docs).
+`batterdb` uses OpenAPI to document its API, and when the server is running it's available at [http://localhost:1205/openapi.yaml](http://localhost:1205/openapi.yaml).
 
-To dump the spec for use in generators, you can use the `-openapi` flag with the version (3.1 or 3.0.3) you want to use.
+To dump the spec for use in generators, you can use the `-openapi` flag with the version (3.1 or 3.0.3) you want to use. The specs are also available committed to the repo: 
+- [3.1](https://raw.githubusercontent.com/jh125486/batterdb/main/openapi.yaml)
+- [3.0.3](https://raw.githubusercontent.com/jh125486/batterdb/main/openapi.downgraded.yaml)
+
+Generating a client is beyond the scope of this README, but many are available at [OpenAPI Generator](https://openapi-generator.tech/). 
 
 ## Inspiration/credits
 
