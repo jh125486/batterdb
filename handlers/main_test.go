@@ -73,7 +73,7 @@ func TestService_MainHandlers(t *testing.T) {
 			t.Parallel()
 			// setup.
 			_, api := humatest.New(t)
-			svc, _ := handlers.New()
+			svc := handlers.New()
 			svc.AddRoutes(api)
 			if tt.setup != nil {
 				tt.setup(svc)

@@ -1,7 +1,10 @@
 package repository
 
 import (
+	"encoding/gob"
 	"errors"
+	"log/slog"
+	"os"
 	"sort"
 	"sync"
 
@@ -95,4 +98,43 @@ func (r *Repository) Drop(id string) error {
 	}
 
 	return ErrNotFound
+}
+
+func (r *Repository) Persist(filename string) error {
+	r.mx.RLock()
+	defer r.mx.RUnlock()
+
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	defer func() {
+		slog.Info("Repository saved to disk", slog.Int("databases", len(r.Databases)))
+	}()
+
+	return gob.NewEncoder(file).Encode(r)
+}
+
+func (r *Repository) Load(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// File doesn't exist yet.
+			slog.Info("No repository file found")
+			return nil
+		}
+		return err
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+	defer func() {
+		slog.Info("Repository loaded from disk", slog.Int("databases", len(r.Databases)))
+	}()
+
+	return gob.NewDecoder(file).Decode(r)
 }

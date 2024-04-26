@@ -1,6 +1,9 @@
 package repository_test
 
 import (
+	"os"
+	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/google/uuid"
@@ -54,7 +57,7 @@ func TestRepository_New(t *testing.T) {
 			wantErr: assert.NoError,
 		},
 		{
-			name: "Already exists database",
+			name: "database already exists",
 			setup: func() *repository.Repository {
 				r := repository.New()
 				_, err := r.New("abcd")
@@ -73,11 +76,12 @@ func TestRepository_New(t *testing.T) {
 			repo := tt.setup()
 			l := repo.Len()
 			db, err := repo.New(tt.args.dbname)
-			if tt.wantErr(t, err); err == nil {
-				l++
-				require.Equal(t, tt.args.dbname, db.Name)
+			if tt.wantErr(t, err); err != nil {
+				require.Equal(t, l, repo.Len())
+				return
 			}
-			require.Equal(t, l, repo.Len())
+			require.Equal(t, l+1, repo.Len())
+			require.Equal(t, tt.args.dbname, db.Name)
 		})
 	}
 }
@@ -201,13 +205,14 @@ func TestRepository_Database(t *testing.T) {
 
 			repo := tt.setup(t)
 			db, err := repo.Database(tt.args.id)
-			if tt.wantErr(t, err); err == nil {
-				require.Equal(t, tt.args.id, db.Name)
-				assert.NotEqual(t, uuid.Nil, db.ID)
-				db, err = repo.Database(db.ID.String())
-				require.NoError(t, err)
-				require.Equal(t, tt.args.id, db.Name)
+			if tt.wantErr(t, err); err != nil {
+				return
 			}
+			require.Equal(t, tt.args.id, db.Name)
+			assert.NotEqual(t, uuid.Nil, db.ID)
+			db, err = repo.Database(db.ID.String())
+			require.NoError(t, err)
+			require.Equal(t, tt.args.id, db.Name)
 		})
 	}
 }
@@ -261,6 +266,98 @@ func TestRepository_Drop(t *testing.T) {
 			repo := tt.setup()
 			tt.wantErr(t, repo.Drop(tt.args.id))
 			assert.Equal(t, tt.wantLen, repo.Len())
+		})
+	}
+}
+
+func TestRepository_Persist(t *testing.T) {
+	t.Parallel()
+	type args struct {
+		filename string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "persist",
+			args: args{
+				filename: "test",
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "persist bad file",
+			args: args{
+				filename: "",
+			},
+			wantErr: assert.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			repo := repository.New()
+			tt.args.filename = filepath.Join(t.TempDir(), tt.args.filename)
+			tt.wantErr(t, repo.Persist(tt.args.filename))
+		})
+	}
+}
+
+func TestRepository_Load(t *testing.T) {
+	t.Parallel()
+
+	persistedRepo := repository.New()
+	for i := range 10 {
+		_, err := persistedRepo.New("database" + strconv.Itoa(i))
+		require.NoError(t, err)
+	}
+	persistedRepoFile := filepath.Join(t.TempDir(), t.Name())
+	require.NoError(t, persistedRepo.Persist(persistedRepoFile))
+
+	type args struct {
+		filename string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr assert.ErrorAssertionFunc
+		wantDB  int
+	}{
+		{
+			name: "load no file",
+			args: args{
+				filename: filepath.Join(t.TempDir(), "file"),
+			},
+			wantErr: assert.NoError,
+			wantDB:  0,
+		},
+		{
+			name: "load",
+			args: args{
+				filename: persistedRepoFile,
+			},
+			wantErr: assert.NoError,
+			wantDB:  persistedRepo.Len(),
+		},
+		{
+			name: "load bad file",
+			args: args{
+				filename: os.Args[0], // use the test binary as a bad file.
+			},
+			wantErr: assert.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			repo := repository.New()
+			err := repo.Load(tt.args.filename)
+			if tt.wantErr(t, err); err != nil {
+				return
+			}
+			require.Equal(t, tt.wantDB, repo.Len())
 		})
 	}
 }

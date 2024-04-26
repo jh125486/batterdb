@@ -3,22 +3,14 @@ package main
 import (
 	"errors"
 	"flag"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/danielgtaylor/huma/v2"
-
 	"github.com/jh125486/batterdb/handlers"
 )
-
-// XXX Readme -> How to genearate a client from the OpenAPI spec.
-// coverage badge
-// godoc badge
-// save the OpenAPI spec to a file with GH action
 
 func main() {
 	var (
@@ -31,10 +23,13 @@ func main() {
 	flag.StringVar(&openapi, "openapi", "", "Print the OpenAPI spec version: 3.1 and 3.0.3 available.")
 	flag.Parse()
 
-	svc, api := handlers.New()
+	svc := handlers.New()
 	svc.PersistDB = persistDB // super lazy options setting here.
 
-	openAPI(openapi, api)
+	if openapi != "" {
+		_, _ = os.Stdout.Write(svc.OpenAPI(openapi))
+		os.Exit(0)
+	}
 
 	// Listen for interrupt signals.
 	stop := make(chan os.Signal, 1)
@@ -56,22 +51,4 @@ func main() {
 		slog.Error("failed to gracefully shutdown", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
-}
-
-// openAPI is slightly icky, but I just want to output the OpenAPI spec if set and exit.
-func openAPI(openapi string, api huma.API) {
-	switch openapi {
-	case "3.1":
-		b, _ := api.OpenAPI().YAML()
-		fmt.Println(string(b))
-	case "3.0.3":
-		// Use downgrade to return OpenAPI 3.0.3 YAML since oapi-codegen doesn't
-		// support OpenAPI 3.1 fully yet.
-		b, _ := api.OpenAPI().DowngradeYAML()
-		fmt.Println(string(b))
-	default:
-		return
-	}
-
-	os.Exit(0)
 }

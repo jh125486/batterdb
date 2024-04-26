@@ -1,0 +1,30 @@
+name: Generate OpenAPI files
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: 'true' }
+
+      - uses: actions/setup-go@v5
+        with: { go-version: stable }
+
+      - name: Generate OpenAPI file
+        run: |
+          go run . -openapi=3.1 > openapi.yaml
+          go run . -openapi=3.0.3 > openapi.downgraded.yaml
+
+      - name: Commit and push if it's not up-to-date
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add openapi.yaml openapi.downgraded.yaml
+          git diff --quiet && git diff --staged --quiet || git commit -m "Updated OpenAPI files"
+          git push

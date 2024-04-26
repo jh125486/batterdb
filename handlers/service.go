@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"encoding/gob"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -36,6 +35,7 @@ const repofile = ".repository.gob"
 type Service struct {
 	StartedAt  time.Time
 	Repository *repository.Repository
+	API        huma.API
 	server     *http.Server
 	Version    string
 	GoVersion  string
@@ -45,7 +45,7 @@ type Service struct {
 	Port       int
 }
 
-func New() (*Service, huma.API) {
+func New() *Service {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		panic("couldn't read build info")
@@ -62,8 +62,8 @@ func New() (*Service, huma.API) {
 
 	mux := http.NewServeMux()
 	config := huma.DefaultConfig("BatterDB", "1.0.0")
-	api := humago.New(mux, config)
-	s.AddRoutes(api)
+	s.API = humago.New(mux, config)
+	s.AddRoutes(s.API)
 	s.server = &http.Server{
 		Handler:        LoggingHandler(mux),
 		ReadTimeout:    15 * time.Second,
@@ -71,7 +71,7 @@ func New() (*Service, huma.API) {
 		MaxHeaderBytes: int(units.MiB),
 	}
 
-	return s, api
+	return s
 }
 
 func (s *Service) AddRoutes(api huma.API) {
@@ -84,12 +84,28 @@ func (s *Service) Start(port int) error {
 	s.Port = port
 	s.server.Addr = fmt.Sprintf("127.0.0.1:%d", s.Port)
 	s.initMsg()
-	if err := s.LoadRepositoryFromFile(repofile); err != nil {
+	if err := s.LoadRepoFromFile(repofile); err != nil {
 		slog.Error("Failed to load repository", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
 
 	return s.server.ListenAndServe()
+}
+
+// OpenAPI return the OpenAPI spec as a string in the requested version.
+func (s *Service) OpenAPI(openapi string) []byte {
+	switch openapi {
+	case "3.1":
+		b, _ := s.API.OpenAPI().YAML()
+		return b
+	case "3.0.3":
+		// Use downgrade to return OpenAPI 3.0.3 YAML since oapi-codegen doesn't
+		// support OpenAPI 3.1 fully yet.
+		b, _ := s.API.OpenAPI().DowngradeYAML()
+		return b
+	default:
+		return nil
+	}
 }
 
 func (s *Service) Shutdown() error {
@@ -102,7 +118,7 @@ func (s *Service) Shutdown() error {
 		return err
 	}
 
-	return s.SaveRepositoryToFile(repofile)
+	return s.PersistRepoToFile(repofile)
 }
 
 func (s *Service) registerMain(api huma.API) {
@@ -241,45 +257,16 @@ func (s *Service) initMsg() {
 	slog.Info(fmt.Sprintf("PID:          %v", s.PID))
 }
 
-func (s *Service) SaveRepositoryToFile(filename string) error {
+func (s *Service) PersistRepoToFile(filename string) error {
 	if !s.PersistDB {
 		return nil
 	}
-	file, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = file.Close()
-	}()
-
-	defer func() {
-		slog.Info("Repository saved to disk", slog.Int("databases", len(s.Repository.Databases)))
-	}()
-
-	return gob.NewEncoder(file).Encode(s.Repository)
+	return s.Repository.Persist(filename)
 }
 
-func (s *Service) LoadRepositoryFromFile(filename string) error {
+func (s *Service) LoadRepoFromFile(filename string) error {
 	if !s.PersistDB {
 		return nil
 	}
-
-	file, err := os.Open(filename)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// File doesn't exist, initialize a new Repository
-			s.Repository = repository.New()
-			return nil
-		}
-		return err
-	}
-	defer func() {
-		_ = file.Close()
-	}()
-	defer func() {
-		slog.Info("Repository loaded from disk", slog.Int("databases", len(s.Repository.Databases)))
-	}()
-
-	return gob.NewDecoder(file).Decode(s.Repository)
+	return s.Repository.Load(filename)
 }

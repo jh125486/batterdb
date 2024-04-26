@@ -504,7 +504,7 @@ func TestService_StacksHandlers(t *testing.T) {
 			t.Parallel()
 			// setup.
 			_, api := humatest.New(t)
-			svc, _ := handlers.New()
+			svc := handlers.New()
 			svc.AddRoutes(api)
 			if tt.query != nil {
 				tt.path += "?" + tt.query.Encode()

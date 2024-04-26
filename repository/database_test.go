@@ -163,12 +163,13 @@ func TestDatabase_Stack(t *testing.T) {
 			db := tt.setup()
 
 			stack, err := db.Stack(tt.args.id)
-			if tt.wantErr(t, err); err == nil {
-				assert.Equal(t, tt.args.id, stack.Name)
-				stack, err = db.Stack(stack.ID.String())
-				require.NoError(t, err)
-				require.Equal(t, tt.args.id, stack.Name)
+			if tt.wantErr(t, err); err != nil {
+				return
 			}
+			assert.Equal(t, tt.args.id, stack.Name)
+			stack, err = db.Stack(stack.ID.String())
+			require.NoError(t, err)
+			require.Equal(t, tt.args.id, stack.Name)
 		})
 	}
 }
@@ -225,11 +226,12 @@ func TestDatabase_New(t *testing.T) {
 			db := tt.setup()
 			l := db.Len()
 			stack, err := db.New(tt.args.id)
-			if tt.wantErr(t, err); err == nil {
-				l++
-				require.Equal(t, tt.args.id, stack.Name)
+			if tt.wantErr(t, err); err != nil {
+				require.Equal(t, l, db.Len())
+				return
 			}
-			require.Equal(t, l, db.Len())
+			require.Equal(t, l+1, db.Len())
+			require.Equal(t, tt.args.id, stack.Name)
 		})
 	}
 }
