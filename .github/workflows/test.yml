@@ -1,0 +1,49 @@
+name: test & coverage
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with: { lfs: 'true' }
+
+    - uses: actions/setup-go@v5
+      with: { go-version: stable }
+
+    - name: Format
+      run: gofmt -s -w . && git diff --exit-code
+
+    - name: Tidy
+      run: go mod tidy && git diff --exit-code
+
+    - name: Download
+      run: go mod download
+
+    - name: Verify
+      run: go mod verify
+
+    - name: Vet
+      run: go vet ./...
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Test
+      run: go test -v ./...
+
+    - name: Update coverage report
+      uses: ncruces/go-coverage-report@v0
+      with:
+        report: true
+        chart: true
+        amend: true
+      if: |
+        github.event_name == 'push'
+      continue-on-error: true
