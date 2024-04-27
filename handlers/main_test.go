@@ -3,6 +3,7 @@ package handlers_test
 import (
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strings"
 	"testing"
 
@@ -15,6 +16,10 @@ import (
 
 func TestService_MainHandlers(t *testing.T) {
 	t.Parallel()
+	const (
+		goVersion = "superCoolVer"
+		version   = "v1.2.3"
+	)
 	tests := []struct {
 		name          string
 		setup         func(*handlers.Service)
@@ -32,15 +37,12 @@ func TestService_MainHandlers(t *testing.T) {
 			expStatusCode: http.StatusOK,
 			processBody: func(s string) string {
 				for k, v := range map[string]string{
-					"started_at":        "StartedAt",
-					"status":            "OK",
-					"version":           "",
-					"go_version":        "GoVersion",
-					"host":              "Host",
-					"memory_alloc":      "MemoryAlloc",
-					"running_for":       "RunningFor",
-					"pid":               "PID",
-					"number_goroutines": "NumberGoroutines",
+					"started_at":        "$StartedAt",
+					"host":              "$Host",
+					"memory_alloc":      "$MemoryAlloc",
+					"running_for":       "$RunningFor",
+					"pid":               "$PID",
+					"number_goroutines": "$NumberGoroutines",
 				} {
 					var err error
 					s, err = sjson.Set(s, k, v)
@@ -49,15 +51,15 @@ func TestService_MainHandlers(t *testing.T) {
 				return s
 			},
 			expBody: `{
-			  "started_at": "StartedAt",
+			  "started_at": "$StartedAt",
 			  "status": "OK",
-			  "version": "",
-			  "go_version": "GoVersion",
-			  "host": "Host",
-			  "memory_alloc": "MemoryAlloc",
-			  "running_for": "RunningFor",
-			  "pid": "PID",
-			  "number_goroutines": "NumberGoroutines"
+			  "version": "` + version + `",
+			  "go_version": "` + goVersion + `",
+			  "host": "$Host",
+			  "memory_alloc": "$MemoryAlloc",
+			  "running_for": "$RunningFor",
+			  "pid": "$PID",
+			  "number_goroutines": "$NumberGoroutines"
 			}`,
 		},
 		{
@@ -73,7 +75,12 @@ func TestService_MainHandlers(t *testing.T) {
 			t.Parallel()
 			// setup.
 			_, api := humatest.New(t)
-			svc := handlers.New()
+			svc := handlers.New(handlers.WithBuildInfo(&debug.BuildInfo{
+				GoVersion: goVersion,
+				Main: debug.Module{
+					Version: version,
+				},
+			}))
 			svc.AddRoutes(api)
 			if tt.setup != nil {
 				tt.setup(svc)

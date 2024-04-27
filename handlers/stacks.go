@@ -14,7 +14,7 @@ import (
 type (
 	StackInput struct {
 		URLParamDatabaseID
-		KV bool `query:"kv" default:"false"`
+		KV bool `default:"false" query:"kv"`
 	}
 	StacksOutput struct {
 		Body struct {
@@ -44,6 +44,7 @@ func (s *Service) ListDatabaseStacksHandler(_ context.Context, input *StackInput
 			stacks[stack.Name] = stack.Peek()
 		}
 		out.Body.Stacks = stacks
+
 		return out, nil
 	}
 
@@ -67,7 +68,7 @@ func (s *Service) ListDatabaseStacksHandler(_ context.Context, input *StackInput
 type (
 	CreateDatabaseStackInput struct {
 		URLParamDatabaseID
-		Name string `query:"name" minLength:"7" required:"true"`
+		Name string `minLength:"7" query:"name" required:"true"`
 	}
 	StackOutput struct {
 		Body Stack `json:"stack"`
@@ -104,7 +105,7 @@ type (
 		URLParamStackID
 	}
 	URLParamStackID struct {
-		StackID string `path:"stack" doc:"can be the stack ID or name"`
+		StackID string `doc:"can be the stack ID or name" path:"stack"`
 	}
 )
 

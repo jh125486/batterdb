@@ -40,7 +40,7 @@ func (s *Service) ListDatabasesHandler(_ context.Context, _ *struct{}) (*Databas
 
 type (
 	URLParamDatabaseID struct {
-		DatabaseID string `path:"database" doc:"can be the database ID or name"`
+		DatabaseID string `doc:"can be the database ID or name" path:"database"`
 	}
 	SingleDatabaseInput struct {
 		URLParamDatabaseID
@@ -68,7 +68,7 @@ func (s *Service) ShowDatabaseHandler(_ context.Context, input *SingleDatabaseIn
 
 type (
 	CreateDatabaseInput struct {
-		Name string `query:"name" minLength:"7" required:"true"`
+		Name string `minLength:"7" query:"name" required:"true"`
 	}
 	CreateDatabaseOutput struct {
 		Body Database

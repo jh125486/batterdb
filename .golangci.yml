@@ -7,6 +7,8 @@ linters-settings:
     threshold: 100
   lll:
     line-length: 140
+  nlreturn:
+    block-size: 4
   goconst:
     min-len: 2
     min-occurrences: 2
@@ -19,44 +21,55 @@ linters-settings:
         - experimental
         - opinionated
         - performance
+  tagalign:
+    strict: true
+    order:
+      - name
+      - short
+      - env
+      - default
+      - help
 linters:
   enable:
     - bodyclose
     - errcheck
     - funlen
-    - lll
-    - godot
     - goconst
     - gocyclo
-    - goimports
-    - revive
+    - godot
     - gofmt
+    - goimports
     - gosimple
     - govet
     - ineffassign
+    - lll
     - misspell
     - nakedret
+    - nlreturn
+    - noctx
+    - paralleltest
     - prealloc
+    - revive
+    - sloglint
     - staticcheck
-    - unused
+    - stylecheck
+    - tagalign
+    - testifylint
     - testpackage
+    - thelper
+    - tparallel
     - unconvert
     - unparam
     - unused
+    - unused
     - usestdlibvars
     - whitespace
-    - tparallel
-    - thelper
-    - testifylint
-    - stylecheck
-    - sloglint
-    - paralleltest
-    - noctx
 
 issues:
   exclude-rules:
     - path: _test\.go$
       linters:
+        - nlreturn
         - govet
         - funlen
         - gocyclo

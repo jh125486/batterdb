@@ -40,10 +40,9 @@ type (
 
 		server    *http.Server
 		startedAt time.Time
-		version   string
-		goVersion string
+		buildInfo *debug.BuildInfo
 		platform  string
-		repofile  string
+		savefile  string
 		port      atomic.Int32
 		persistDB bool
 		pid       int
@@ -52,24 +51,18 @@ type (
 )
 
 func New(opts ...Option) *Service {
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		panic("couldn't read build info")
-	}
-
 	// defaults.
 	s := &Service{
-		version:    info.Main.Version,
-		goVersion:  info.GoVersion,
 		platform:   fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH),
 		pid:        os.Getpid(),
 		startedAt:  time.Now().UTC(),
 		Repository: repository.New(),
-		repofile:   ".repository.gob",
+		savefile:   ".batterdb.gob",
 	}
 	for _, opt := range opts {
 		opt(s)
 	}
+
 	mux := http.NewServeMux()
 	config := huma.DefaultConfig("BatterDB", "1.0.0")
 	config.Info.Contact = &huma.Contact{
@@ -91,15 +84,21 @@ func New(opts ...Option) *Service {
 	return s
 }
 
-func WithPort(port int) Option {
+func WithBuildInfo(buildInfo *debug.BuildInfo) Option {
 	return func(s *Service) {
-		s.port.Store(int32(port))
+		s.buildInfo = buildInfo
 	}
 }
 
-func WithRepofile(repofile string) Option {
+func WithPort(port int32) Option {
 	return func(s *Service) {
-		s.repofile = repofile
+		s.port.Store(port)
+	}
+}
+
+func WithRepoFile(repofile string) Option {
+	return func(s *Service) {
+		s.savefile = repofile
 	}
 }
 
@@ -127,7 +126,7 @@ func (s *Service) Start() error {
 	s.port.Store(int32(listener.Addr().(*net.TCPAddr).Port))
 	s.server.Addr = fmt.Sprintf("127.0.0.1:%d", s.port.Load())
 
-	if err := s.LoadRepoFromFile(); err != nil {
+	if err := s.LoadToFile(); err != nil {
 		return fmt.Errorf("failed to load repository: %w", err)
 	}
 
@@ -166,7 +165,7 @@ func (s *Service) Shutdown(ctx context.Context) error {
 		return err
 	}
 
-	if err := s.PersistRepoToFile(); err != nil {
+	if err := s.SaveToFile(); err != nil {
 		return err
 	}
 
@@ -301,24 +300,24 @@ func (s *Service) initMsg() {
 	for _, l := range strings.Split(logo, "\n") {
 		slog.Info(l)
 	}
-	slog.Info(fmt.Sprintf("Version:      %v", s.version))
-	slog.Info(fmt.Sprintf("Go version:   %v", s.goVersion))
+	slog.Info(fmt.Sprintf("Version:      %v", s.buildInfo.Main.Version))
+	slog.Info(fmt.Sprintf("Go version:   %v", s.buildInfo.GoVersion))
 	slog.Info(fmt.Sprintf("Host:         %v", s.platform))
 	slog.Info(fmt.Sprintf("Port:         %v", s.Port()))
 	slog.Info(fmt.Sprintf("PID:          %v", s.pid))
 	if s.persistDB {
-		slog.Info(fmt.Sprintf("Loaded repo:  %v", s.repofile))
+		slog.Info(fmt.Sprintf("Loaded repo:  %v", s.savefile))
 		slog.Info(fmt.Sprintf("Databases:    %v", s.Repository.Len()))
 	}
 	slog.Info(fmt.Sprintf("Serving:      http://%v", s.server.Addr))
 	slog.Info(fmt.Sprintf("Docs:         http://%v/docs#/", s.server.Addr))
 }
 
-func (s *Service) PersistRepoToFile() error {
+func (s *Service) SaveToFile() error {
 	if !s.persistDB {
 		return nil
 	}
-	if err := s.Repository.Persist(s.repofile); err != nil {
+	if err := s.Repository.Persist(s.savefile); err != nil {
 		return err
 	}
 	slog.Info("Repository saved to disk", slog.Int("databases", s.Repository.Len()))
@@ -326,9 +325,9 @@ func (s *Service) PersistRepoToFile() error {
 	return nil
 }
 
-func (s *Service) LoadRepoFromFile() error {
+func (s *Service) LoadToFile() error {
 	if !s.persistDB {
 		return nil
 	}
-	return s.Repository.Load(s.repofile)
+	return s.Repository.Load(s.savefile)
 }

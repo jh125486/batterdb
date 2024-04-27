@@ -31,8 +31,8 @@ func (s *Service) StatusHandler(_ context.Context, _ *struct{}) (*StatusOutput, 
 	runtime.ReadMemStats(&mem)
 	out := new(StatusOutput)
 	out.Body.Code = http.StatusText(http.StatusOK)
-	out.Body.Version = s.version
-	out.Body.GoVersion = s.goVersion
+	out.Body.Version = s.buildInfo.Main.Version
+	out.Body.GoVersion = s.buildInfo.GoVersion
 	out.Body.Host = s.platform
 	out.Body.PID = s.pid
 	out.Body.StartedAt = s.startedAt

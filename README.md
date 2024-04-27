@@ -14,8 +14,7 @@ ______       _   _           ____________
 
 ## What is batterdb?
 
-**batterdb** is a database engine, which means that it's a tool that provides mechanisms to store data in a certain way. In the case of **batterdb**, this way is by pushes **_Elements_** in **_Stacks_,** so you only have access to the _Element_ on top, keeping the rest of them underneath.
-
+**batterdb** operates as a stack-based database. It functions by pushing **_Elements_** onto **_Stacks_**. Consequently, you can only interact with the topmost _**Element**_, while the remaining elements are stored beneath it.
 ```mermaid
 ---
 title: Overview of batterDB
@@ -38,15 +37,15 @@ graph LR
 
 ### `batterdb`
 
-**`batterdb`** is the daemon program (server), that will initialize the _Repository_, exposing to external users an HTTP interface to: create/delete _Databases_, create/deletes _Stacks_, `PUSH` or `POP` _Elements_, etc.
+**`batterdb`** is a server program that initializes the _Repository_. It provides an HTTP interface for external users, allowing operations such as creating or deleting _Databases_, _Stacks_, and performing stack (`PUSH`, `POP`, etc.) operations on Elements.
 
 ### Repository
 
-The **_Repository_** is the main entity of **batterdb**. It's the container of all the _Databases_ that you create, and it's the one that will be listening for incoming connections.
+The **_Repository_** is the central component of **batterdb**. It houses all the _Databases_ that you create, and listens for incoming connections.
 
 ### Database
 
-A **_Database_** is a collection of _Stacks_. You can create as many _Databases_ as you want, and each one will be independent of the others.
+A **_Database_** is a collection of _Stacks_. You have the flexibility to create multiple _Databases_, each operating independently of the others.
 
 ### Stack
 
@@ -62,7 +61,7 @@ Every operation applied to a **Stack** has a O(1) complexity, and will block fur
 
 ### Element
 
-An **_Element_** is a piece of data that can be pushed into a _Stack_, and has a JSON compatible format. This means that you can handle in **batterdb** the following data types:
+An **_Element_** refers to a data unit that can be pushed into a Stack. It is compatible with the JSON format. Examples of data types that **batterdb** can handle:
 
 * Number: `42`, `3.14`, `.333`, `3.7E-5`.
 * String: `foo`, `PilaDB`, `\thello\nworld`, ` `, 💾.
@@ -92,22 +91,34 @@ go install github.com/jh125486/batterdb@latest
 ### Command line
 
 ```shell
-Usage of batterdb:
-  -openapi string
-        Print the OpenAPI spec version: 3.1 and 3.0.3 available.
-  -persist
-        Persist the database to disk.
-  -port int
-        The port to listen on. (default 1205)
+Usage: batterdb <command> [flags]
+
+A simple stacked-based database 🔋.
+
+Flags:
+  -h, --help                         Show context-sensitive help.
+  -p, --port=1205                    Port to listen on.
+  -s, --store                        Persist the database to disk.
+      --repo-file=".batterdb.gob"    The file to persist the database to.
+  -v, --version                      Show version.
+
+Commands:
+  server [flags]
+    Start the server.
+
+  open-api [flags]
+    Output the OpenAPI specification version.
+
+Run "batterdb <command> --help" for more information on a command.
 ```
 
-*Note*: The `-persist` flag will store the repository as `.repository.gob` in the current directory.
+*Note*: The `--store` flag will store the repository by default as `.batterdb.gob` in the current directory, but you can change it with the `--repo-file` flag.
 
 ### Online documentation
 
-`batterdb` uses OpenAPI to document its API, and when the server is running it's available at [http://localhost:1205/openapi.yaml](http://localhost:1205/openapi.yaml).
+`batterdb` uses OpenAPI to document its API, and when the server is running it is available at [http://localhost:1205/openapi.yaml](http://localhost:1205/openapi.yaml).
 
-To dump the spec for use in generators, you can use the `-openapi` flag with the version (3.1 or 3.0.3) you want to use. The specs are also available committed to the repo: 
+To dump the spec for use in generators, you can use the `open-api` subcommand flag with the version (3.1 or 3.0.3) you want to use. The specs are also available committed to the repo: 
 - [3.1](https://raw.githubusercontent.com/jh125486/batterdb/main/openapi.yaml)
 - [3.0.3](https://raw.githubusercontent.com/jh125486/batterdb/main/openapi.downgraded.yaml)
 
@@ -115,4 +126,4 @@ Generating a client is beyond the scope of this README, but many are available a
 
 ## Inspiration/credits
 
-This project is inspired by [PilaDB](https://github.com/fern4lvarez/piladb), and the name is a pun on "stack" -> "pila" -> "battery" -> "battery DB" -> "batterdb".
+This project is inspired by [PilaDB](https://github.com/fern4lvarez/piladb), and the name is a pun on "_stack_" ➟ "_pila_" ➟ "_battery_" ➟ "_battery DB_" ➟ "**_batterdb_**".

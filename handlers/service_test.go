@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"testing"
 	"time"
@@ -20,6 +21,11 @@ import (
 func TestService_Start(t *testing.T) {
 	t.Parallel()
 
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		t.Fatal("can't read build info")
+	}
+
 	canceledCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	cancel()
 
@@ -32,7 +38,7 @@ func TestService_Start(t *testing.T) {
 		wantShutdownErr assert.ErrorAssertionFunc
 	}{
 		{
-			name: "no persist",
+			name: "no save",
 			opts: []handlers.Option{
 				handlers.WithPort(0),
 			},
@@ -52,9 +58,10 @@ func TestService_Start(t *testing.T) {
 			wantShutdownErr: assert.NoError,
 		},
 		{
-			name: "persist",
+			name: "save",
 			opts: []handlers.Option{
 				handlers.WithPersistDB(true),
+				handlers.WithRepoFile(filepath.Join(t.TempDir(), t.Name())),
 				handlers.WithPort(0),
 			},
 			shutdownCtx:     context.Background(),
@@ -63,11 +70,11 @@ func TestService_Start(t *testing.T) {
 			wantShutdownErr: assert.NoError,
 		},
 		{
-			name: "bad repofile",
+			name: "bad savefile",
 			opts: []handlers.Option{
 				handlers.WithPersistDB(true),
 				handlers.WithPort(0),
-				handlers.WithRepofile(""),
+				handlers.WithRepoFile(""),
 			},
 			shutdownCtx:     context.Background(),
 			wait:            10 * time.Millisecond,
@@ -92,6 +99,7 @@ func TestService_Start(t *testing.T) {
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			tt.opts = append(tt.opts, handlers.WithBuildInfo(info))
 			svc := handlers.New(tt.opts...)
 			go func() {
 				tt.wantStartErr(t, svc.Start())
@@ -102,35 +110,35 @@ func TestService_Start(t *testing.T) {
 	}
 }
 
-func TestService_PersistRepoToFile(t *testing.T) {
+func TestService_SaveToFile(t *testing.T) {
 	t.Parallel()
 	type args struct {
 		filename string
 	}
 	tests := []struct {
 		name    string
-		persist bool
+		save    bool
 		args    args
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{
-			name: "no persist",
+			name: "no save",
 			args: args{
 				filename: "test",
 			},
 			wantErr: assert.NoError,
 		},
 		{
-			name:    "persist",
-			persist: true,
+			name: "save",
+			save: true,
 			args: args{
 				filename: "test",
 			},
 			wantErr: assert.NoError,
 		},
 		{
-			name:    "persist bad file",
-			persist: true,
+			name: "save bad file",
+			save: true,
 			args: args{
 				filename: "",
 			},
@@ -141,15 +149,15 @@ func TestService_PersistRepoToFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			svc := handlers.New(
-				handlers.WithPersistDB(tt.persist),
-				handlers.WithRepofile(filepath.Join(t.TempDir(), tt.args.filename)),
+				handlers.WithPersistDB(tt.save),
+				handlers.WithRepoFile(filepath.Join(t.TempDir(), tt.args.filename)),
 			)
-			tt.wantErr(t, svc.PersistRepoToFile())
+			tt.wantErr(t, svc.SaveToFile())
 		})
 	}
 }
 
-func TestService_LoadRepoFromFile(t *testing.T) {
+func TestService_LoadToFile(t *testing.T) {
 	t.Parallel()
 
 	persistedRepo := repository.New()
@@ -197,7 +205,7 @@ func TestService_LoadRepoFromFile(t *testing.T) {
 			wantDB:  10,
 		},
 		{
-			name:    "persist bad file",
+			name:    "save bad file",
 			persist: true,
 			args: args{
 				filename: os.Args[0], // use the test binary as a bad file.
@@ -210,9 +218,9 @@ func TestService_LoadRepoFromFile(t *testing.T) {
 			t.Parallel()
 			svc := handlers.New(
 				handlers.WithPersistDB(tt.persist),
-				handlers.WithRepofile(tt.args.filename),
+				handlers.WithRepoFile(tt.args.filename),
 			)
-			err := svc.LoadRepoFromFile()
+			err := svc.LoadToFile()
 			if tt.wantErr(t, err); err != nil {
 				return
 			}
