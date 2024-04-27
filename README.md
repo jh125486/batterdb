@@ -76,7 +76,7 @@ An **_Element_** refers to a data unit that can be pushed into a Stack. It is co
 ### Download
 
 Windows, macOS, and Linux binaries are available.
-You can download the latest release from the [releases page](/releases/latest).
+You can download the latest release from the [releases page](https://github.com/jh125486/batterdb/releases/latest).
 
 ### Installing using Go
 
