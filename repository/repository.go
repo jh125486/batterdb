@@ -123,6 +123,7 @@ func (r *Repository) Load(filename string) error {
 			slog.Info("No repository file found", slog.String("filename", filename))
 			return nil
 		}
+
 		return err
 	}
 	defer func() {

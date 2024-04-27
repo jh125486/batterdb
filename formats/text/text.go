@@ -25,6 +25,7 @@ var DefaultTextFormat = huma.Format{
 				return err
 			}
 			_, err = w.Write(b)
+
 			return err
 		}
 		_, err := w.Write([]byte(fmt.Sprint(v)))

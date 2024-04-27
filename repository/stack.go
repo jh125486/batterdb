@@ -44,6 +44,7 @@ func (s *Stack) Pop() any {
 	s.setUpdateTime(time.Now())
 	res := s.Data[len(s.Data)-1]
 	s.Data = s.Data[:len(s.Data)-1]
+
 	return res
 }
 
@@ -60,6 +61,7 @@ func (s *Stack) Peek() any {
 	if len(s.Data) == 0 {
 		return nil
 	}
+
 	return s.Data[len(s.Data)-1]
 }
 
