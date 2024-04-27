@@ -25,6 +25,14 @@ func (lrw *loggingResponseWriter) Write(b []byte) (int, error) {
 
 func LoggingHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check if this is a WebSocket upgrade request.
+		if upgrade := r.Header.Get("Upgrade"); upgrade == "websocket" {
+			// If it is, bypass the logging and pass the request directly to the next handler.
+			h.ServeHTTP(w, r)
+			return
+		}
+
+		// If it's not a WebSocket upgrade request, proceed with the logging as usual.
 		lrw := &loggingResponseWriter{ResponseWriter: w}
 		h.ServeHTTP(lrw, r)
 		slog.Info(fmt.Sprintf("%s %v %d", r.Method, r.URL.Path, lrw.StatusCode))

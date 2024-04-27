@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/jh125486/batterdb/handlers"
 )
@@ -17,6 +18,7 @@ func TestLoggingHandler(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name       string
+		header     http.Header
 		method     string
 		path       string
 		body       io.Reader
@@ -42,14 +44,25 @@ func TestLoggingHandler(t *testing.T) {
 			body:       strings.NewReader("abc"),
 			wantStatus: http.StatusOK,
 		},
+		{
+			name: "WS request",
+			header: map[string][]string{
+				"Upgrade": {"websocket"},
+			},
+			method:     http.MethodGet,
+			path:       "/",
+			body:       strings.NewReader("abc"),
+			wantStatus: http.StatusOK,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			req, err := http.NewRequestWithContext(context.TODO(), tt.method, tt.path, tt.body)
-			if err != nil {
-				t.Fatal(err)
+			require.NoError(t, err)
+			for k, v := range tt.header {
+				req.Header.Set(k, v[0])
 			}
 
 			rr := httptest.NewRecorder()
@@ -59,7 +72,9 @@ func TestLoggingHandler(t *testing.T) {
 				}
 				if r.Body != nil {
 					b, _ := io.ReadAll(r.Body)
-					defer r.Body.Close()
+					defer func() {
+						_ = r.Body.Close()
+					}()
 					_, _ = w.Write(b)
 				}
 			})

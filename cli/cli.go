@@ -27,6 +27,7 @@ type (
 		Port     int32  `short:"p" default:"1205"        help:"Port to listen on."`
 		Store    bool   `short:"s"                       help:"Persist the database to disk."`
 		RepoFile string `          default:"${RepoFile}" help:"The file to persist the database to."`
+		Secure   bool   `short:"S"                       help:"Enable HTTPS."`
 
 		Server ServerCmd `default:"1" help:"Start the server." cmd:""`
 
@@ -64,6 +65,7 @@ func (cmd *CLI) AfterApply(ctx *Ctx) error {
 		handlers.WithPort(cmd.Port),
 		handlers.WithPersistDB(cmd.Store),
 		handlers.WithRepoFile(cmd.RepoFile),
+		handlers.WithSecure(cmd.Secure),
 	)
 
 	return nil

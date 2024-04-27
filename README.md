@@ -100,6 +100,7 @@ Flags:
   -p, --port=1205                    Port to listen on.
   -s, --store                        Persist the database to disk.
       --repo-file=".batterdb.gob"    The file to persist the database to.
+  -S, --secure                       Enable HTTPS.
   -v, --version                      Show version.
 
 Commands:

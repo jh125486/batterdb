@@ -20,7 +20,6 @@ import (
 	"github.com/jh125486/batterdb/cli"
 )
 
-// XXX expose metrics
 // XXX add otel
 
 func main() {

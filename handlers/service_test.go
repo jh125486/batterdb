@@ -95,6 +95,16 @@ func TestService_Start(t *testing.T) {
 			wantStartErr:    assert.NoError,
 			wantShutdownErr: assert.NoError,
 		},
+		{
+			name: "secure",
+			opts: []handlers.Option{
+				handlers.WithSecure(true),
+			},
+			shutdownCtx:     canceledCtx,
+			wait:            100 * time.Millisecond,
+			wantStartErr:    assert.NoError,
+			wantShutdownErr: assert.NoError,
+		},
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {

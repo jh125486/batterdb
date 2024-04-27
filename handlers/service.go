@@ -2,9 +2,17 @@ package handlers
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"net"
 	"net/http"
 	"os"
@@ -15,9 +23,11 @@ import (
 	"time"
 
 	"github.com/alecthomas/units"
+	"github.com/arl/statsviz"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	_ "github.com/danielgtaylor/huma/v2/formats/cbor" // Register the CBOR format.
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	_ "github.com/jh125486/batterdb/formats/text" // Register the text format.
 	_ "github.com/jh125486/batterdb/formats/yaml" // Register the YAML format.
@@ -45,6 +55,7 @@ type (
 		savefile  string
 		port      atomic.Int32
 		persistDB bool
+		secure    bool
 		pid       int
 	}
 	Option func(*Service)
@@ -73,15 +84,43 @@ func New(opts ...Option) *Service {
 	config.Info.Description = "A simple in-memory stack database."
 
 	s.API = humago.New(mux, config)
+
+	// Register Prometheus metric.
+	mux.Handle("/metrics", promhttp.Handler())
+
+	// Register the API routes.
 	s.AddRoutes(s.API)
-	s.server = &http.Server{
+
+	// Register statsviz.
+	_ = statsviz.Register(mux)
+
+	// Create the server.
+	s.server = server(s.secure, mux)
+
+	return s
+}
+
+func server(secure bool, mux *http.ServeMux) *http.Server {
+	var tlsConfig *tls.Config
+	if secure {
+		cert, err := generateSelfSignedCert()
+		if err != nil {
+			slog.Error(err.Error())
+			os.Exit(1)
+		}
+		tlsConfig = &tls.Config{
+			MinVersion:   tls.VersionTLS12,
+			Certificates: []tls.Certificate{cert},
+		}
+	}
+
+	return &http.Server{
 		Handler:        LoggingHandler(mux),
+		TLSConfig:      tlsConfig,
 		ReadTimeout:    15 * time.Second,
 		WriteTimeout:   15 * time.Second,
 		MaxHeaderBytes: int(units.MiB),
 	}
-
-	return s
 }
 
 func WithBuildInfo(buildInfo *debug.BuildInfo) Option {
@@ -102,6 +141,12 @@ func WithRepoFile(repofile string) Option {
 	}
 }
 
+func WithSecure(secure bool) Option {
+	return func(s *Service) {
+		s.secure = secure
+	}
+}
+
 func WithPersistDB(persist bool) Option {
 	return func(s *Service) {
 		s.persistDB = persist
@@ -117,22 +162,32 @@ func (s *Service) AddRoutes(api huma.API) {
 func (s *Service) Port() int32 { return s.port.Load() }
 
 func (s *Service) Start() error {
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.Port()))
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", s.Port()))
 	if err != nil {
 		return fmt.Errorf("failed to start listener: %w", err)
 	}
 
 	// Save the actual port from the listener.
-	s.port.Store(int32(listener.Addr().(*net.TCPAddr).Port))
-	s.server.Addr = fmt.Sprintf("127.0.0.1:%d", s.port.Load())
+	s.port.Store(int32(l.Addr().(*net.TCPAddr).Port))
+	s.server.Addr = fmt.Sprintf("localhost:%d", s.port.Load())
 
 	if err := s.LoadToFile(); err != nil {
 		return fmt.Errorf("failed to load repository: %w", err)
 	}
 
-	s.initMsg()
+	s.loadInitMsg()
 
-	if err := s.server.Serve(listener); !errors.Is(err, http.ErrServerClosed) {
+	return s.serve(l)
+}
+
+func (s *Service) serve(l net.Listener) error {
+	var err error
+	if s.secure {
+		err = s.server.ServeTLS(l, "", "")
+	} else {
+		err = s.server.Serve(l)
+	}
+	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 
@@ -296,7 +351,7 @@ func (s *Service) registerStacksCRUD(api huma.API) {
 	}, s.DeleteDatabaseStackHandler)
 }
 
-func (s *Service) initMsg() {
+func (s *Service) loadInitMsg() {
 	for _, l := range strings.Split(logo, "\n") {
 		slog.Info(l)
 	}
@@ -309,8 +364,14 @@ func (s *Service) initMsg() {
 		slog.Info(fmt.Sprintf("Loaded repo:  %v", s.savefile))
 		slog.Info(fmt.Sprintf("Databases:    %v", s.Repository.Len()))
 	}
-	slog.Info(fmt.Sprintf("Serving:      http://%v", s.server.Addr))
-	slog.Info(fmt.Sprintf("Docs:         http://%v/docs#/", s.server.Addr))
+	baseURL := "http://" + s.server.Addr
+	if s.secure {
+		baseURL = "https://" + s.server.Addr
+	}
+	slog.Info(fmt.Sprintf("Serving:      %v", baseURL))
+	slog.Info(fmt.Sprintf("Docs:         %v/docs#/", baseURL))
+	slog.Info(fmt.Sprintf("Metrics:      %v/metrics", baseURL))
+	slog.Info(fmt.Sprintf("StatsViz:     %v/debug/statsviz", baseURL))
 }
 
 func (s *Service) SaveToFile() error {
@@ -330,4 +391,51 @@ func (s *Service) LoadToFile() error {
 		return nil
 	}
 	return s.Repository.Load(s.savefile)
+}
+
+func generateSelfSignedCert() (tls.Certificate, error) {
+	// Generate a new private key.
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	// Create a new random serial number for the certificate.
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	// Create a simple certificate template.
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			Organization: []string{"github.com/jh125486"},
+		},
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(365 * 24 * time.Hour), // Valid for one year.
+		KeyUsage:  x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{
+			x509.ExtKeyUsageServerAuth,
+		},
+		BasicConstraintsValid: true,
+	}
+
+	// Create a self-signed certificate.
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	// PEM encode the certificate and private key.
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	privBytes, err := x509.MarshalPKCS8PrivateKey(priv)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privBytes})
+
+	// Load the certificate and private key to create a tls.Certificate.
+	return tls.X509KeyPair(certPEM, keyPEM)
 }
