@@ -33,6 +33,7 @@ components:
         databases:
           items:
             $ref: "#/components/schemas/Database"
+          nullable: true
           type: array
         number_of_databases:
           format: int64
@@ -70,6 +71,7 @@ components:
           description: Optional list of individual error details
           items:
             $ref: "#/components/schemas/ErrorDetail"
+          nullable: true
           type: array
         instance:
           description: A URI reference that identifies the specific occurrence of the problem.
