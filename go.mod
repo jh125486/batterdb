@@ -6,7 +6,7 @@ require (
 	github.com/alecthomas/kong v1.6.0
 	github.com/alecthomas/units v0.0.0-20231202071711-9a357b53e9c9
 	github.com/arl/statsviz v0.6.0
-	github.com/danielgtaylor/huma/v2 v2.27.0
+	github.com/danielgtaylor/huma/v2 v2.28.0
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/stretchr/testify v1.10.0
@@ -32,6 +32,6 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	golang.org/x/net v0.30.0 // indirect
-	golang.org/x/sys v0.26.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
 	google.golang.org/protobuf v1.35.1 // indirect
 )
