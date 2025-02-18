@@ -12,7 +12,7 @@ import (
 
 func TestDefaultYAMLFormat(t *testing.T) {
 	t.Parallel()
-	format := yaml.DefaultYAMLFormat
+	format := yaml.DefaultYAMLFormat()
 	tests := []struct {
 		name     string
 		v        any

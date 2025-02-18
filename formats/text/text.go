@@ -17,30 +17,27 @@ import (
 //		"plain/text": huma.DefaultTextFormat,
 //		"text":       huma.DefaultTextFormat,
 //	}
-var DefaultTextFormat = huma.Format{
-	Marshal: func(w io.Writer, v any) error {
-		if m, ok := v.(encoding.TextMarshaler); ok {
-			b, err := m.MarshalText()
-			if err != nil {
+func DefaultTextFormat() huma.Format {
+	return huma.Format{
+		Marshal: func(w io.Writer, v any) error {
+			if m, ok := v.(encoding.TextMarshaler); ok {
+				b, err := m.MarshalText()
+				if err != nil {
+					return err
+				}
+				_, err = w.Write(b)
+
 				return err
 			}
-			_, err = w.Write(b)
+			_, err := w.Write([]byte(fmt.Sprint(v)))
 
 			return err
-		}
-		_, err := w.Write([]byte(fmt.Sprint(v)))
-
-		return err
-	},
-	Unmarshal: func(data []byte, v any) error {
-		if m, ok := v.(encoding.TextUnmarshaler); ok {
-			return m.UnmarshalText(data)
-		}
-		return huma.Error501NotImplemented("text format not supported")
-	},
-}
-
-func init() {
-	huma.DefaultFormats["plain/text"] = DefaultTextFormat
-	huma.DefaultFormats["text"] = DefaultTextFormat
+		},
+		Unmarshal: func(data []byte, v any) error {
+			if m, ok := v.(encoding.TextUnmarshaler); ok {
+				return m.UnmarshalText(data)
+			}
+			return huma.Error501NotImplemented("text format not supported")
+		},
+	}
 }

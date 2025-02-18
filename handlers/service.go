@@ -1,3 +1,9 @@
+// Package handlers provides the core HTTP service and middleware for the batterdb
+// application. This includes setting up the HTTP server, configuring the API, handling
+// secure connections, and managing the lifecycle of the service.
+//
+// The package utilizes the huma framework for API routing and Prometheus for metrics.
+// It also supports self-signed TLS certificate generation for secure connections.
 package handlers
 
 import (
@@ -24,13 +30,14 @@ import (
 
 	"github.com/alecthomas/units"
 	"github.com/arl/statsviz"
+	"github.com/ccoveille/go-safecast"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	_ "github.com/danielgtaylor/huma/v2/formats/cbor" // Register the CBOR format.
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	_ "github.com/jh125486/batterdb/formats/text" // Register the text format.
-	_ "github.com/jh125486/batterdb/formats/yaml" // Register the YAML format.
+	"github.com/jh125486/batterdb/formats/text"
+	"github.com/jh125486/batterdb/formats/yaml"
 	"github.com/jh125486/batterdb/repository"
 )
 
@@ -44,6 +51,8 @@ ______       _   _           ____________
 `
 
 type (
+	// Service represents the main service structure which holds the repository, API, server configuration,
+	// build information, platform details, and other service-related configurations.
 	Service struct {
 		Repository *repository.Repository
 		API        huma.API
@@ -58,9 +67,12 @@ type (
 		secure    bool
 		pid       int
 	}
+
+	// Option represents a configuration option for the Service.
 	Option func(*Service)
 )
 
+// New creates a new instance of the Service with the provided options.
 func New(opts ...Option) *Service {
 	// defaults.
 	s := &Service{
@@ -85,6 +97,12 @@ func New(opts ...Option) *Service {
 
 	s.API = humago.New(mux, config)
 
+	// Register REST formats.
+	huma.DefaultFormats["application/yaml"] = yaml.DefaultYAMLFormat()
+	huma.DefaultFormats["yaml"] = yaml.DefaultYAMLFormat()
+	huma.DefaultFormats["plain/text"] = text.DefaultTextFormat()
+	huma.DefaultFormats["text"] = text.DefaultTextFormat()
+
 	// Register Prometheus metric.
 	mux.Handle("/metrics", promhttp.Handler())
 
@@ -100,6 +118,7 @@ func New(opts ...Option) *Service {
 	return s
 }
 
+// server creates a new HTTP server with optional TLS configuration.
 func server(secure bool, mux *http.ServeMux) *http.Server {
 	var tlsConfig *tls.Config
 	if secure {
@@ -123,44 +142,52 @@ func server(secure bool, mux *http.ServeMux) *http.Server {
 	}
 }
 
+// WithBuildInfo sets the build information for the Service.
 func WithBuildInfo(buildInfo *debug.BuildInfo) Option {
 	return func(s *Service) {
 		s.buildInfo = buildInfo
 	}
 }
 
+// WithPort sets the port for the Service.
 func WithPort(port int32) Option {
 	return func(s *Service) {
 		s.port.Store(port)
 	}
 }
 
+// WithRepoFile sets the repository file for the Service.
 func WithRepoFile(repofile string) Option {
 	return func(s *Service) {
 		s.savefile = repofile
 	}
 }
 
+// WithSecure sets the secure flag for the Service.
 func WithSecure(secure bool) Option {
 	return func(s *Service) {
 		s.secure = secure
 	}
 }
 
+// WithPersistDB sets the persistDB flag for the Service.
 func WithPersistDB(persist bool) Option {
 	return func(s *Service) {
 		s.persistDB = persist
 	}
 }
 
+// AddRoutes registers the API routes for the Service.
 func (s *Service) AddRoutes(api huma.API) {
 	s.registerMain(api)
 	s.registerDatabases(api)
 	s.registerStacks(api)
 }
 
+// Port returns the current port the Service is running on.
 func (s *Service) Port() int32 { return s.port.Load() }
 
+// Start starts the Service and listens for incoming requests.
 func (s *Service) Start() error {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", s.Port()))
 	if err != nil {
@@ -168,7 +195,11 @@ func (s *Service) Start() error {
 	}
 
 	// Save the actual port from the listener.
-	s.port.Store(int32(l.Addr().(*net.TCPAddr).Port))
+	port, err := safecast.ToInt32(l.Addr().(*net.TCPAddr).Port)
+	if err != nil {
+		return err
+	}
+	s.port.Store(port)
 	s.server.Addr = fmt.Sprintf("localhost:%d", s.port.Load())
 
 	if err := s.LoadToFile(); err != nil {
@@ -180,6 +211,7 @@ func (s *Service) Start() error {
 	return s.serve(l)
 }
 
+// serve starts the HTTP or HTTPS server based on the secure flag.
 func (s *Service) serve(l net.Listener) error {
 	var err error
 	if s.secure {
@@ -194,7 +226,7 @@ func (s *Service) serve(l net.Listener) error {
 	return nil
 }
 
-// OpenAPI return the OpenAPI spec as a string in the requested version.
+// OpenAPI returns the OpenAPI spec as a string in the requested version.
 func (s *Service) OpenAPI(openapi string) []byte {
 	switch openapi {
 	case "3.1":
@@ -210,6 +242,7 @@ func (s *Service) OpenAPI(openapi string) []byte {
 	}
 }
 
+// Shutdown gracefully shuts down the Service and saves the repository to file.
 func (s *Service) Shutdown(ctx context.Context) error {
 	// Create a deadline to wait for.
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -227,6 +260,7 @@ func (s *Service) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+// registerMain registers the main API routes for the Service.
 func (s *Service) registerMain(api huma.API) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-status",
@@ -245,6 +279,8 @@ func (s *Service) registerMain(api huma.API) {
 		Tags:        []string{"Main"},
 	}, PingHandler)
 }
+
+// registerDatabases registers the API routes for database operations.
 func (s *Service) registerDatabases(api huma.API) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "post-database",
@@ -280,6 +316,8 @@ func (s *Service) registerDatabases(api huma.API) {
 		Tags:        []string{"Databases"},
 	}, s.DeleteDatabaseHandler)
 }
+
+// registerStacks registers the API routes for stack operations.
 func (s *Service) registerStacks(api huma.API) {
 	s.registerStacksCRUD(api)
 	huma.Register(api, huma.Operation{
@@ -315,6 +353,8 @@ func (s *Service) registerStacks(api huma.API) {
 		Tags:        []string{"Stack Operations"},
 	}, s.FlushDatabaseStackHandler)
 }
+
+// registerStacksCRUD registers the CRUD API routes for stacks.
 func (s *Service) registerStacksCRUD(api huma.API) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-stack",
@@ -351,6 +391,7 @@ func (s *Service) registerStacksCRUD(api huma.API) {
 	}, s.DeleteDatabaseStackHandler)
 }
 
+// loadInitMsg logs the initial message with service details when the service starts.
 func (s *Service) loadInitMsg() {
 	for _, l := range strings.Split(logo, "\n") {
 		slog.Info(l)
@@ -374,6 +415,7 @@ func (s *Service) loadInitMsg() {
 	slog.Info(fmt.Sprintf("StatsViz:     %v/debug/statsviz", baseURL))
 }
 
+// SaveToFile saves the repository to a file if the persistDB flag is set.
 func (s *Service) SaveToFile() error {
 	if !s.persistDB {
 		return nil
@@ -386,6 +428,7 @@ func (s *Service) SaveToFile() error {
 	return nil
 }
 
+// LoadToFile loads the repository from a file if the persistDB flag is set.
 func (s *Service) LoadToFile() error {
 	if !s.persistDB {
 		return nil
@@ -393,6 +436,7 @@ func (s *Service) LoadToFile() error {
 	return s.Repository.Load(s.savefile)
 }
 
+// generateSelfSignedCert generates a self-signed TLS certificate for secure connections.
 func generateSelfSignedCert() (tls.Certificate, error) {
 	// Generate a new private key.
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

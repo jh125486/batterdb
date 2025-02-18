@@ -16,14 +16,11 @@ import (
 //		"application/yaml": huma.DefaultYAMLFormat,
 //		"yaml":             huma.DefaultYAMLFormat,
 //	}
-var DefaultYAMLFormat = huma.Format{
-	Marshal: func(w io.Writer, v any) error {
-		return yaml.NewEncoder(w).Encode(v)
-	},
-	Unmarshal: yaml.Unmarshal,
-}
-
-func init() {
-	huma.DefaultFormats["application/yaml"] = DefaultYAMLFormat
-	huma.DefaultFormats["yaml"] = DefaultYAMLFormat
+func DefaultYAMLFormat() huma.Format {
+	return huma.Format{
+		Marshal: func(w io.Writer, v any) error {
+			return yaml.NewEncoder(w).Encode(v)
+		},
+		Unmarshal: yaml.Unmarshal,
+	}
 }

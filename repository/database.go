@@ -1,3 +1,9 @@
+// Package repository provides the core data structures and methods for managing
+// databases and stacks in the batterdb application. It includes functionality for
+// creating, retrieving, sorting, and deleting stacks within a database.
+//
+// The package uses UUIDs for unique identification of databases and stacks,
+// and employs mutex locks for concurrent access to shared data structures.
 package repository
 
 import (
@@ -8,6 +14,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// Database represents a collection of stacks, identified by a unique UUID.
+// It includes methods for managing stacks within the database.
 type Database struct {
 	Stacks map[name]*Stack
 	Name   string
@@ -15,12 +23,14 @@ type Database struct {
 	mx     sync.RWMutex
 }
 
+// Len returns the number of stacks in the database.
 func (db *Database) Len() int {
 	db.mx.RLock()
 	defer db.mx.RUnlock()
 	return len(db.Stacks)
 }
 
+// SortStacks returns a sorted slice of stacks in the database, sorted by name.
 func (db *Database) SortStacks() []*Stack {
 	db.mx.RLock()
 	defer db.mx.RUnlock()
@@ -35,6 +45,7 @@ func (db *Database) SortStacks() []*Stack {
 	return stacks
 }
 
+// Stack retrieves a stack by its ID or name. If the stack is not found, it returns an error.
 func (db *Database) Stack(id string) (*Stack, error) {
 	db.mx.RLock()
 	defer db.mx.RUnlock()
@@ -55,6 +66,8 @@ func (db *Database) Stack(id string) (*Stack, error) {
 	return nil, ErrNotFound
 }
 
+// New creates a new stack with the given name and adds it to the database.
+// If a stack with the same name already exists, it returns an error.
 func (db *Database) New(n string) (*Stack, error) {
 	db.mx.Lock()
 	defer db.mx.Unlock()
@@ -76,6 +89,7 @@ func (db *Database) New(n string) (*Stack, error) {
 	return stack, nil
 }
 
+// Drop removes a stack from the database by its ID or name. If the stack is not found, it returns an error.
 func (db *Database) Drop(id string) error {
 	db.mx.Lock()
 	defer db.mx.Unlock()

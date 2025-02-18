@@ -50,7 +50,7 @@ func (b BadWriter) Write(_ []byte) (int, error) { return 0, io.EOF }
 
 func TestDefaultTextFormat_Marshal(t *testing.T) {
 	t.Parallel()
-	format := text.DefaultTextFormat
+	format := text.DefaultTextFormat()
 	type args struct {
 		w io.ReadWriter
 		v any
@@ -116,7 +116,7 @@ func TestDefaultTextFormat_Marshal(t *testing.T) {
 
 func TestDefaultTextFormat_Unmarshal(t *testing.T) {
 	t.Parallel()
-	format := text.DefaultTextFormat
+	format := text.DefaultTextFormat()
 	type args struct {
 		bytes []byte
 	}

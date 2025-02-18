@@ -2,9 +2,9 @@
 // Databases are created with a unique name and can contain multiple stacks.
 // Stacks are created within a database and can contain multiple elements.
 // Docs are served at /docs.
-
-//In the case of **batterdb**, this way is by pushes **_Elements_** in **_Stacks_,** so you only have access to the _Element_ on top,
-//keeping the rest of them underneath.
+//
+// In the case of **batterdb**, this way is by pushes **_Elements_** in **_Stacks_,** so you only have access to the _Element_ on top,
+// keeping the rest of them underneath.
 
 package main
 
