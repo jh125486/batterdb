@@ -6,7 +6,7 @@ require (
 	github.com/alecthomas/kong v1.8.1
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
 	github.com/arl/statsviz v0.6.0
-	github.com/ccoveille/go-safecast v1.5.0
+	github.com/ccoveille/go-safecast v1.6.0
 	github.com/danielgtaylor/huma/v2 v2.28.0
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.20.5
