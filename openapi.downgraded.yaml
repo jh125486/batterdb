@@ -1,4 +1,14 @@
 components:
+  parameters:
+    timeout:
+      name: timeout
+      in: query
+      description: Timeout in milliseconds. 0 means no timeout.
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
   schemas:
     Database:
       additionalProperties: false
@@ -459,6 +469,7 @@ paths:
           schema:
             description: can be the stack ID or name
             type: string
+        - $ref: '#/components/parameters/timeout'
       responses:
         "200":
           content:
@@ -527,6 +538,7 @@ paths:
           schema:
             description: can be the stack ID or name
             type: string
+        - $ref: '#/components/parameters/timeout'
       requestBody:
         content:
           application/json:
@@ -568,6 +580,7 @@ paths:
           schema:
             description: can be the stack ID or name
             type: string
+        - $ref: '#/components/parameters/timeout'
       responses:
         "200":
           content:
@@ -634,6 +647,7 @@ paths:
           schema:
             description: can be the stack ID or name
             type: string
+        - $ref: '#/components/parameters/timeout'
       responses:
         "200":
           content:

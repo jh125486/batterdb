@@ -59,6 +59,19 @@ A **_Stack_** represents a linear data structure that contains _Elements_, based
 
 Every operation applied to a **Stack** has a O(1) complexity, and will block further incoming or concurrent operations, which ensures consistent responses within a reasonable amount of time.
 
+### API Timeout Parameter
+
+All stack operation endpoints (`PUSH`, `POP`, `PEEK`, `FLUSH`) support a `timeout` query parameter. This allows clients to specify a maximum time (in milliseconds) that the request should be allowed to run before timing out. If the operation cannot complete within the specified timeout, the request will return a 408 Request Timeout response.
+
+Example usage:
+```
+GET /databases/mydb/stacks/mystack/peek?timeout=500
+```
+
+This will attempt to peek at the top element of the stack, but will time out after 500 milliseconds if the operation hasn't completed.
+
+Setting `timeout=0` or omitting the parameter means no timeout will be applied beyond the server's standard read/write timeouts.
+
 ### Element
 
 An **_Element_** refers to a data unit that can be pushed into a Stack. It is compatible with the JSON format. Examples of data types that **batterdb** can handle:
