@@ -134,7 +134,7 @@ func server(secure bool, mux *http.ServeMux) *http.Server {
 	}
 
 	return &http.Server{
-		Handler:        LoggingHandler(mux),
+		Handler:        TimeoutMiddleware(LoggingHandler(mux)),
 		TLSConfig:      tlsConfig,
 		ReadTimeout:    15 * time.Second,
 		WriteTimeout:   15 * time.Second,
