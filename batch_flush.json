@@ -1,0 +1,19 @@
+{
+  "operations": [
+    {
+      "type": "peek",
+      "database": "batchtest",
+      "stack": "batchstack"
+    },
+    {
+      "type": "flush",
+      "database": "batchtest",
+      "stack": "batchstack"
+    },
+    {
+      "type": "peek",
+      "database": "batchtest",
+      "stack": "batchstack"
+    }
+  ]
+} 
