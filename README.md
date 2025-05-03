@@ -59,6 +59,92 @@ A **_Stack_** represents a linear data structure that contains _Elements_, based
 
 Every operation applied to a **Stack** has a O(1) complexity, and will block further incoming or concurrent operations, which ensures consistent responses within a reasonable amount of time.
 
+### API Timeout Parameter
+
+All stack operation endpoints (`PUSH`, `POP`, `PEEK`, `FLUSH`) support a `timeout` query parameter. This allows clients to specify a maximum time (in milliseconds) that the request should be allowed to run before timing out. If the operation cannot complete within the specified timeout, the request will return a 408 Request Timeout response.
+
+Example usage:
+```
+GET /databases/mydb/stacks/mystack/peek?timeout=500
+```
+
+This will attempt to peek at the top element of the stack, but will time out after 500 milliseconds if the operation hasn't completed.
+
+Setting `timeout=0` or omitting the parameter means no timeout will be applied beyond the server's standard read/write timeouts.
+
+### Batch Operations
+
+For improved performance and reduced network overhead, batterdb supports batch operations. This allows executing multiple stack operations in a single API call.
+
+To use batch operations, send a POST request to the `/batch` endpoint with an array of operations:
+
+```json
+{
+  "operations": [
+    {
+      "type": "push",
+      "database": "mydb",
+      "stack": "mystack",
+      "element": "value1"
+    },
+    {
+      "type": "push",
+      "database": "mydb",
+      "stack": "mystack",
+      "element": "value2"
+    },
+    {
+      "type": "pop",
+      "database": "mydb",
+      "stack": "mystack"
+    },
+    {
+      "type": "peek",
+      "database": "mydb",
+      "stack": "mystack"
+    }
+  ]
+}
+```
+
+The server will execute each operation in sequence and return an array of results:
+
+```json
+{
+  "results": [
+    {
+      "status": 200,
+      "result": "value1"
+    },
+    {
+      "status": 200,
+      "result": "value2"
+    },
+    {
+      "status": 200,
+      "result": "value2"
+    },
+    {
+      "status": 200,
+      "result": "value1"
+    }
+  ]
+}
+```
+
+Each result includes:
+- `status`: HTTP status code for the individual operation
+- `result`: Result of the operation (if successful)
+- `error`: Error message (if operation failed)
+
+Supported operation types:
+- `push`: Adds an element to the top of the stack (requires `element` field)
+- `pop`: Removes and returns the top element of the stack
+- `peek`: Returns the top element without removing it
+- `flush`: Removes all elements from the stack
+
+Batch operations also support the timeout parameter to limit the total execution time of the batch.
+
 ### Element
 
 An **_Element_** refers to a data unit that can be pushed into a Stack. It is compatible with the JSON format. Examples of data types that **batterdb** can handle:
