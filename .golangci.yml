@@ -1,51 +1,15 @@
-linters-settings:
-  govet:
-    enable-all: true
-  gocyclo:
-    min-complexity: 10
-  dupl:
-    threshold: 100
-  lll:
-    line-length: 140
-  nlreturn:
-    block-size: 4
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  misspell:
-    locale: US
-  gocritic:
-      enable-all: true
-      enabled-tags:
-        - diagnostic
-        - experimental
-        - opinionated
-        - performance
-  tagalign:
-    strict: true
-    order:
-      - name
-      - short
-      - env
-      - default
-      - help
+version: "2"
 linters:
   enable:
     - bodyclose
-    - errcheck
     - funlen
-    - gochecknoglobals 
-    - gochecknoinits 
-    - gocognit 
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognit
     - goconst
     - gocyclo
     - godot
-    - gofmt
-    - goimports
-    - gosec 
-    - gosimple
-    - govet
-    - ineffassign
+    - gosec
     - lll
     - misspell
     - nakedret
@@ -56,7 +20,6 @@ linters:
     - revive
     - sloglint
     - staticcheck
-    - stylecheck
     - tagalign
     - testifylint
     - testpackage
@@ -64,18 +27,66 @@ linters:
     - tparallel
     - unconvert
     - unparam
-    - unused
-    - unused
     - usestdlibvars
     - whitespace
-
-issues:
-  exclude-rules:
-    - path: _test\.go$
-      linters:
-        - nlreturn
-        - govet
-        - funlen
-        - gocyclo
-  exclude-dirs:
-    - testdata
+  settings:
+    dupl:
+      threshold: 100
+    goconst:
+      min-len: 2
+      min-occurrences: 2
+    gocritic:
+      enable-all: true
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+    gocyclo:
+      min-complexity: 10
+    govet:
+      enable-all: true
+    lll:
+      line-length: 140
+    misspell:
+      locale: US
+    nlreturn:
+      block-size: 4
+    tagalign:
+      order:
+        - name
+        - short
+        - env
+        - default
+        - help
+      strict: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - funlen
+          - gocyclo
+          - govet
+          - nlreturn
+        path: _test\.go$
+    paths:
+      - testdata
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - testdata
+      - third_party$
+      - builtin$
+      - examples$

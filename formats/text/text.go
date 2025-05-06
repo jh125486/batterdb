@@ -29,7 +29,7 @@ func DefaultTextFormat() huma.Format {
 
 				return err
 			}
-			_, err := w.Write([]byte(fmt.Sprint(v)))
+			_, err := fmt.Fprint(w, v)
 
 			return err
 		},
