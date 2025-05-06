@@ -1,4 +1,14 @@
 components:
+  parameters:
+    timeout:
+      name: timeout
+      in: query
+      description: Timeout in milliseconds. 0 means no timeout.
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
   schemas:
     Database:
       additionalProperties: false
@@ -222,6 +232,71 @@ components:
         - running_for
         - pid
         - number_goroutines
+      type: object
+    BatchOperation:
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          description: Type of operation to perform.
+          enum: [push, pop, peek, flush]
+        database:
+          type: string
+          description: Database ID or name.
+        stack:
+          type: string
+          description: Stack ID or name.
+        element:
+          description: Element data for push operations.
+      required:
+        - type
+        - database
+        - stack
+      type: object
+    BatchOperationsInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/schemas/BatchOperationsInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        operations:
+          type: array
+          items:
+            $ref: "#/components/schemas/BatchOperation"
+      required:
+        - operations
+      type: object
+    BatchOperationResult:
+      additionalProperties: false
+      properties:
+        status:
+          type: integer
+          description: HTTP status code of the individual operation.
+        result:
+          description: Result of the operation, if successful.
+        error:
+          description: Error message if the operation failed.
+      required:
+        - status
+      type: object
+    BatchOperationsOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/schemas/BatchOperationsOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/BatchOperationResult"
+      required:
+        - results
       type: object
 info:
   contact:
@@ -459,6 +534,7 @@ paths:
           schema:
             description: can be the stack ID or name
             type: string
+        - $ref: '#/components/parameters/timeout'
       responses:
         "200":
           content:
@@ -527,6 +603,7 @@ paths:
           schema:
             description: can be the stack ID or name
             type: string
+        - $ref: '#/components/parameters/timeout'
       requestBody:
         content:
           application/json:
@@ -568,6 +645,7 @@ paths:
           schema:
             description: can be the stack ID or name
             type: string
+        - $ref: '#/components/parameters/timeout'
       responses:
         "200":
           content:
@@ -634,6 +712,7 @@ paths:
           schema:
             description: can be the stack ID or name
             type: string
+        - $ref: '#/components/parameters/timeout'
       responses:
         "200":
           content:
@@ -650,3 +729,31 @@ paths:
       summary: Peek
       tags:
         - Stack Operations
+  /batch:
+    post:
+      description: Execute multiple stack operations in a single request.
+      operationId: batch-operations
+      parameters:
+        - $ref: '#/components/parameters/timeout'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchOperationsInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchOperationsOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Batch Operations
+      tags:
+        - Batch Operations

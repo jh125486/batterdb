@@ -172,7 +172,7 @@ func server(secure bool, mux *http.ServeMux) *http.Server {
 	}
 
 	return &http.Server{
-		Handler:        LoggingHandler(mux),
+		Handler:        TimeoutMiddleware(LoggingHandler(mux)),
 		TLSConfig:      tlsConfig,
 		ReadTimeout:    15 * time.Second,
 		WriteTimeout:   15 * time.Second,
@@ -220,6 +220,7 @@ func (s *Service) AddRoutes(api huma.API) {
 	s.registerMain(api)
 	s.registerDatabases(api)
 	s.registerStacks(api)
+	s.registerBatchOperations(api)
 }
 
 // Port returns the current port the Service is running on.
@@ -427,6 +428,18 @@ func (s *Service) registerStacksCRUD(api huma.API) {
 		Description: "Delete a stack from a database.",
 		Tags:        []string{"Stacks"},
 	}, s.DeleteDatabaseStackHandler)
+}
+
+// registerBatchOperations registers the API route for batch operations.
+func (s *Service) registerBatchOperations(api huma.API) {
+	huma.Register(api, huma.Operation{
+		OperationID: "batch-operations",
+		Method:      http.MethodPost,
+		Path:        "/batch",
+		Summary:     "Batch Operations",
+		Description: "Execute multiple stack operations in a single request.",
+		Tags:        []string{"Batch Operations"},
+	}, s.BatchOperationsHandler)
 }
 
 // loadInitMsg logs the initial message with service details when the service starts.
