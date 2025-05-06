@@ -87,21 +87,24 @@ func New(opts ...Option) *Service {
 	}
 
 	mux := http.NewServeMux()
-	config := huma.DefaultConfig("BatterDB", "1.0.0")
-	config.Info.Contact = &huma.Contact{
-		Name:  "Jacob Hochstetler",
-		URL:   "https://github.com/jh125486",
-		Email: "jacob.hochstetler@gmail.com",
-	}
-	config.Info.Description = "A simple in-memory stack database."
 
-	s.API = humago.New(mux, config)
-
-	// Register REST formats.
-	huma.DefaultFormats["application/yaml"] = yaml.DefaultYAMLFormat()
-	huma.DefaultFormats["yaml"] = yaml.DefaultYAMLFormat()
-	huma.DefaultFormats["plain/text"] = text.DefaultTextFormat()
-	huma.DefaultFormats["text"] = text.DefaultTextFormat()
+	// Crete the API with the app info, contact and formats.
+	s.API = humago.New(mux, config(
+		"BatterDB", "1.0.0", "A simple in-memory stack database.",
+		&huma.Contact{
+			Name:  "Jacob Hochstetler",
+			URL:   "https://github.com/jh125486",
+			Email: "jacob.hochstetler@gmail.com",
+		},
+		map[string]huma.Format{
+			"application/json": huma.DefaultJSONFormat,
+			"json":             huma.DefaultJSONFormat,
+			"application/yaml": yaml.DefaultYAMLFormat(),
+			"yaml":             yaml.DefaultYAMLFormat(),
+			"plain/text":       text.DefaultTextFormat(),
+			"text":             text.DefaultTextFormat(),
+		},
+	))
 
 	// Register Prometheus metric.
 	mux.Handle("/metrics", promhttp.Handler())
@@ -116,6 +119,41 @@ func New(opts ...Option) *Service {
 	s.server = server(s.secure, mux)
 
 	return s
+}
+
+func config(title, version, description string, contact *huma.Contact, formats map[string]huma.Format) huma.Config {
+	schemaPrefix := "#/components/schemas/"
+	schemasPath := "/schemas"
+
+	registry := huma.NewMapRegistry(schemaPrefix, huma.DefaultSchemaNamer)
+
+	return huma.Config{
+		OpenAPI: &huma.OpenAPI{
+			OpenAPI: "3.1.0",
+			Info: &huma.Info{
+				Title:       title,
+				Version:     version,
+				Description: description,
+				Contact:     contact,
+			},
+			Components: &huma.Components{
+				Schemas: registry,
+			},
+		},
+		OpenAPIPath:   "/openapi",
+		DocsPath:      "/docs",
+		SchemasPath:   schemasPath,
+		Formats:       formats,
+		DefaultFormat: "application/json",
+		CreateHooks: []func(huma.Config) huma.Config{
+			func(c huma.Config) huma.Config {
+				linkTransformer := huma.NewSchemaLinkTransformer(schemaPrefix, c.SchemasPath)
+				c.OnAddOperation = append(c.OnAddOperation, linkTransformer.OnAddOperation)
+				c.Transformers = append(c.Transformers, linkTransformer.Transform)
+				return c
+			},
+		},
+	}
 }
 
 // server creates a new HTTP server with optional TLS configuration.
