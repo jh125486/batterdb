@@ -514,7 +514,7 @@ func TestService_StacksHandlers(t *testing.T) {
 			if tt.setup != nil {
 				tt.setup(db)
 			}
-			tt.path = strings.Replace(tt.path, "{database}", db.ID.String(), -1)
+			tt.path = strings.ReplaceAll(tt.path, "{database}", db.ID.String())
 
 			// test.
 			resp := api.Do(tt.method, tt.path, tt.body)
