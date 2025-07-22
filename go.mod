@@ -3,7 +3,7 @@ module github.com/jh125486/batterdb
 go 1.24.0
 
 require (
-	github.com/alecthomas/kong v1.10.0
+	github.com/alecthomas/kong v1.12.1
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
 	github.com/arl/statsviz v0.6.0
 	github.com/ccoveille/go-safecast v1.6.1
