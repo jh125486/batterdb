@@ -9,7 +9,7 @@ require (
 	github.com/ccoveille/go-safecast v1.6.1
 	github.com/danielgtaylor/huma/v2 v2.32.0
 	github.com/google/uuid v1.6.0
-	github.com/prometheus/client_golang v1.22.0
+	github.com/prometheus/client_golang v1.23.0
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/sjson v1.2.5
 	gopkg.in/yaml.v3 v3.0.1
@@ -25,7 +25,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.63.0 // indirect
+	github.com/prometheus/common v0.65.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
