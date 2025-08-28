@@ -10,7 +10,7 @@ require (
 	github.com/danielgtaylor/huma/v2 v2.32.0
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.22.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/sjson v1.2.5
 	gopkg.in/yaml.v3 v3.0.1
 )
