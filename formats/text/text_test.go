@@ -20,7 +20,7 @@ type TestStruct struct {
 }
 
 func (t TestStruct) MarshalText() ([]byte, error) {
-	return []byte(fmt.Sprintf("%s/%d", t.V1, t.V2)), nil
+	return fmt.Appendf(nil, "%s/%d", t.V1, t.V2), nil
 }
 func (t *TestStruct) UnmarshalText(text []byte) error {
 	parts := strings.Split(string(text), "/")
