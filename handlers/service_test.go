@@ -112,7 +112,7 @@ func TestService_Start(t *testing.T) {
 			tt.opts = append(tt.opts, handlers.WithBuildInfo(info))
 			svc := handlers.New(tt.opts...)
 			go func() {
-				tt.wantStartErr(t, svc.Start())
+				tt.wantStartErr(t, svc.Start(context.Background()))
 			}()
 			time.Sleep(tt.wait)
 			tt.wantShutdownErr(t, svc.Shutdown(tt.shutdownCtx))
