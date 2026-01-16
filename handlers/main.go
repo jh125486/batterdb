@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/units"
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 )
 
 type (
@@ -43,7 +43,7 @@ type (
 func (s *Service) StatusHandler(_ context.Context, _ *struct{}) (*StatusOutput, error) {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
-	allocs, err := safecast.ToInt64(mem.Alloc)
+	allocs, err := safecast.Convert[int64](mem.Alloc)
 	if err != nil {
 		return nil, err
 	}
