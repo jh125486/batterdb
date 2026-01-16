@@ -107,6 +107,51 @@ func TestServerCmd_Run(t *testing.T) {
 	}
 }
 
+func TestServerCmd_Run_Cases(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		port    int32
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:    "normal shutdown",
+			port:    1205,
+			wantErr: assert.NoError,
+		},
+		{
+			name:    "start error",
+			port:    -666, // invalid port to force Start() to error
+			wantErr: assert.Error,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := &cli.Ctx{
+				BuildInfo: &buildinfo.BuildInfo{
+					GoVersion: "Test",
+					Main:      debug.Module{Version: "v0.0.0"},
+				},
+				Writer: new(bytes.Buffer),
+				Stop:   make(chan os.Signal, 1),
+			}
+
+			c := cli.CLI{}
+			c.Port = tc.port
+			require.NoError(t, c.AfterApply(ctx))
+			cmd := &cli.ServerCmd{}
+
+			// trigger shutdown
+			ctx.Stop <- os.Interrupt
+			tc.wantErr(t, cmd.Run(ctx))
+			time.Sleep(100 * time.Millisecond)
+		})
+	}
+}
+
 func TestOpenAPICmd_Run(t *testing.T) {
 	t.Parallel()
 	type fields struct {

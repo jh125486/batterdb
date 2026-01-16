@@ -30,7 +30,7 @@ import (
 
 	"github.com/alecthomas/units"
 	"github.com/arl/statsviz"
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	_ "github.com/danielgtaylor/huma/v2/formats/cbor" // Register the CBOR format.
@@ -225,15 +225,17 @@ func (s *Service) AddRoutes(api huma.API) {
 // Port returns the current port the Service is running on.
 func (s *Service) Port() int32 { return s.port.Load() }
 
-// Start starts the Service and listens for incoming requests.
-func (s *Service) Start() error {
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", s.Port()))
+// Start starts the Service and listens for incoming requests. It accepts a parent
+// context which will trigger a graceful shutdown when canceled.
+func (s *Service) Start(ctx context.Context) error {
+	lc := &net.ListenConfig{}
+	l, err := lc.Listen(ctx, "tcp", fmt.Sprintf(":%d", s.Port()))
 	if err != nil {
 		return fmt.Errorf("failed to start listener: %w", err)
 	}
 
 	// Save the actual port from the listener.
-	port, err := safecast.ToInt32(l.Addr().(*net.TCPAddr).Port)
+	port, err := safecast.Convert[int32](l.Addr().(*net.TCPAddr).Port)
 	if err != nil {
 		return err
 	}
@@ -246,22 +248,29 @@ func (s *Service) Start() error {
 
 	s.loadInitMsg()
 
-	return s.serve(l)
-}
+	// Run the server in a goroutine so we can respond to context cancellation.
+	errc := make(chan error, 1)
+	go func() {
+		if s.secure {
+			errc <- s.server.ServeTLS(l, "", "")
+		} else {
+			errc <- s.server.Serve(l)
+		}
+	}()
 
-// serve starts the HTTP or HTTPS server based on the secure flag.
-func (s *Service) serve(l net.Listener) error {
-	var err error
-	if s.secure {
-		err = s.server.ServeTLS(l, "", "")
-	} else {
-		err = s.server.Serve(l)
+	select {
+	case <-ctx.Done():
+		// Attempt graceful shutdown with a fresh background context so that
+		// Shutdown's internal timeout can take effect even if `ctx` is
+		// already canceled.
+		_ = s.Shutdown(context.Background())
+		return ctx.Err()
+	case err := <-errc:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+		return nil
 	}
-	if !errors.Is(err, http.ErrServerClosed) {
-		return err
-	}
-
-	return nil
 }
 
 // OpenAPI returns the OpenAPI spec as a string in the requested version.
@@ -431,7 +440,7 @@ func (s *Service) registerStacksCRUD(api huma.API) {
 
 // loadInitMsg logs the initial message with service details when the service starts.
 func (s *Service) loadInitMsg() {
-	for _, l := range strings.Split(logo, "\n") {
+	for l := range strings.SplitSeq(logo, "\n") {
 		slog.Info(l)
 	}
 	slog.Info(fmt.Sprintf("Version:      %v", s.buildInfo.Main.Version))

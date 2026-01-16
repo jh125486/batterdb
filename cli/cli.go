@@ -92,21 +92,34 @@ func (cmd *CLI) AfterApply(ctx *Ctx) error {
 }
 
 // Run starts the server service in a goroutine and blocks until an OS signal is received,
-// then it initiates a graceful shutdown of the service.
+// then it cancels the server context and waits for the server to exit.
 func (cmd *ServerCmd) Run(ctx *Ctx) error {
-	// Run the service in a goroutine so that it doesn't block.
+	// Create a cancellable context for the server lifecycle.
+	srvCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Start the server and capture its result.
+	errCh := make(chan error, 1)
 	go func() {
-		if err := ctx.service.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("failed to start service", slog.String("err", err.Error()))
-			os.Exit(1)
-		}
+		errCh <- ctx.service.Start(srvCtx)
 	}()
 
 	// Block until we receive our signal.
 	<-ctx.Stop
 
-	// Begin graceful shutdown.
-	return ctx.service.Shutdown(context.Background())
+	// Signal the server to stop and wait for it to exit.
+	cancel()
+	switch err := <-errCh; {
+	case err == nil:
+		// server exited cleanly
+	case errors.Is(err, context.Canceled), errors.Is(err, http.ErrServerClosed):
+		// expected shutdown
+	default:
+		slog.Error("server exited with error", slog.String("err", err.Error()))
+		return err
+	}
+
+	return nil
 }
 
 // Run outputs the OpenAPI specification to the context writer.
