@@ -144,10 +144,16 @@ func TestServerCmd_Run_Cases(t *testing.T) {
 			require.NoError(t, c.AfterApply(ctx))
 			cmd := &cli.ServerCmd{}
 
-			// trigger shutdown
+			// Run command in goroutine and trigger shutdown after ensuring it started
+			errCh := make(chan error, 1)
+			go func() {
+				errCh <- cmd.Run(ctx)
+			}()
+			// allow goroutine to start
+			time.Sleep(10 * time.Millisecond)
 			ctx.Stop <- os.Interrupt
-			tc.wantErr(t, cmd.Run(ctx))
-			time.Sleep(100 * time.Millisecond)
+			tc.wantErr(t, <-errCh)
+			time.Sleep(10 * time.Millisecond)
 		})
 	}
 }

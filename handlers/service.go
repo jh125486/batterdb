@@ -440,8 +440,8 @@ func (s *Service) registerStacksCRUD(api huma.API) {
 
 // loadInitMsg logs the initial message with service details when the service starts.
 func (s *Service) loadInitMsg() {
-	for l := range strings.SplitSeq(logo, "\n") {
-		slog.Info(l)
+	for line := range strings.SplitSeq(logo, "\n") {
+		slog.Info(line)
 	}
 	slog.Info(fmt.Sprintf("Version:      %v", s.buildInfo.Main.Version))
 	slog.Info(fmt.Sprintf("Go version:   %v", s.buildInfo.GoVersion))
