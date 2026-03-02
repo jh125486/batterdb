@@ -162,7 +162,7 @@ func server(secure bool, mux *http.ServeMux) *http.Server {
 	if secure {
 		cert, err := generateSelfSignedCert()
 		if err != nil {
-			slog.Error(err.Error())
+			slog.ErrorContext(context.Background(), err.Error())
 			os.Exit(1)
 		}
 		tlsConfig = &tls.Config{
@@ -242,7 +242,7 @@ func (s *Service) Start(ctx context.Context) error {
 	s.port.Store(port)
 	s.server.Addr = fmt.Sprintf("localhost:%d", s.port.Load())
 
-	if err := s.LoadToFile(); err != nil {
+	if err := s.LoadToFile(ctx); err != nil {
 		return fmt.Errorf("failed to load repository: %w", err)
 	}
 
@@ -440,26 +440,27 @@ func (s *Service) registerStacksCRUD(api huma.API) {
 
 // loadInitMsg logs the initial message with service details when the service starts.
 func (s *Service) loadInitMsg() {
+	ctx := context.Background()
 	for line := range strings.SplitSeq(logo, "\n") {
-		slog.Info(line)
+		slog.InfoContext(ctx, line)
 	}
-	slog.Info(fmt.Sprintf("Version:      %v", s.buildInfo.Main.Version))
-	slog.Info(fmt.Sprintf("Go version:   %v", s.buildInfo.GoVersion))
-	slog.Info(fmt.Sprintf("Host:         %v", s.platform))
-	slog.Info(fmt.Sprintf("Port:         %v", s.Port()))
-	slog.Info(fmt.Sprintf("PID:          %v", s.pid))
+	slog.InfoContext(ctx, fmt.Sprintf("Version:      %v", s.buildInfo.Main.Version))
+	slog.InfoContext(ctx, fmt.Sprintf("Go version:   %v", s.buildInfo.GoVersion))
+	slog.InfoContext(ctx, fmt.Sprintf("Host:         %v", s.platform))
+	slog.InfoContext(ctx, fmt.Sprintf("Port:         %v", s.Port()))
+	slog.InfoContext(ctx, fmt.Sprintf("PID:          %v", s.pid))
 	if s.persistDB {
-		slog.Info(fmt.Sprintf("Loaded repo:  %v", s.savefile))
-		slog.Info(fmt.Sprintf("Databases:    %v", s.Repository.Len()))
+		slog.InfoContext(ctx, fmt.Sprintf("Loaded repo:  %v", s.savefile))
+		slog.InfoContext(ctx, fmt.Sprintf("Databases:    %v", s.Repository.Len()))
 	}
 	baseURL := "http://" + s.server.Addr
 	if s.secure {
 		baseURL = "https://" + s.server.Addr
 	}
-	slog.Info(fmt.Sprintf("Serving:      %v", baseURL))
-	slog.Info(fmt.Sprintf("Docs:         %v/docs#/", baseURL))
-	slog.Info(fmt.Sprintf("Metrics:      %v/metrics", baseURL))
-	slog.Info(fmt.Sprintf("StatsViz:     %v/debug/statsviz", baseURL))
+	slog.InfoContext(ctx, fmt.Sprintf("Serving:      %v", baseURL))
+	slog.InfoContext(ctx, fmt.Sprintf("Docs:         %v/docs#/", baseURL))
+	slog.InfoContext(ctx, fmt.Sprintf("Metrics:      %v/metrics", baseURL))
+	slog.InfoContext(ctx, fmt.Sprintf("StatsViz:     %v/debug/statsviz", baseURL))
 }
 
 // SaveToFile saves the repository to a file if the persistDB flag is set.
@@ -470,17 +471,17 @@ func (s *Service) SaveToFile() error {
 	if err := s.Repository.Persist(s.savefile); err != nil {
 		return err
 	}
-	slog.Info("Repository saved to disk", slog.Int("databases", s.Repository.Len()))
+	slog.InfoContext(context.Background(), "Repository saved to disk", slog.Int("databases", s.Repository.Len()))
 
 	return nil
 }
 
 // LoadToFile loads the repository from a file if the persistDB flag is set.
-func (s *Service) LoadToFile() error {
+func (s *Service) LoadToFile(ctx context.Context) error {
 	if !s.persistDB {
 		return nil
 	}
-	return s.Repository.Load(s.savefile)
+	return s.Repository.Load(ctx, s.savefile)
 }
 
 // generateSelfSignedCert generates a self-signed TLS certificate for secure connections.

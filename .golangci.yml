@@ -52,6 +52,10 @@ linters:
       locale: US
     nlreturn:
       block-size: 4
+    sloglint:
+      context: "all"
+      attr-only: true
+      args-on-sep-lines: true
     tagalign:
       order:
         - name

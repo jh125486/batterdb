@@ -115,7 +115,7 @@ func (cmd *ServerCmd) Run(ctx *Ctx) error {
 	case errors.Is(err, context.Canceled), errors.Is(err, http.ErrServerClosed):
 		// expected shutdown
 	default:
-		slog.Error("server exited with error", slog.String("err", err.Error()))
+		slog.ErrorContext(srvCtx, "server exited with error", slog.String("err", err.Error()))
 		return err
 	}
 
