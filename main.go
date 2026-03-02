@@ -9,6 +9,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -30,7 +31,7 @@ func main() {
 	// Read build info.
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
-		slog.Error("couldn't read build info")
+		slog.ErrorContext(context.Background(), "couldn't read build info")
 		os.Exit(1)
 	}
 	ctx, err := cli.New(
@@ -46,7 +47,7 @@ func main() {
 		}),
 	)
 	if err != nil {
-		slog.Error(err.Error())
+		slog.ErrorContext(context.Background(), "Failed to parse command line", slog.Any("error", err))
 		os.Exit(1)
 	}
 

@@ -230,7 +230,7 @@ func TestService_LoadToFile(t *testing.T) {
 				handlers.WithPersistDB(tt.persist),
 				handlers.WithRepoFile(tt.args.filename),
 			)
-			err := svc.LoadToFile()
+			err := svc.LoadToFile(context.Background())
 			if tt.wantErr(t, err); err != nil {
 				return
 			}
