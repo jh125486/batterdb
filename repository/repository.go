@@ -8,6 +8,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/gob"
 	"errors"
 	"log/slog"
@@ -137,12 +138,12 @@ func (r *Repository) Persist(filename string) error {
 }
 
 // Load loads the repository state from a file.
-func (r *Repository) Load(filename string) error {
+func (r *Repository) Load(ctx context.Context, filename string) error {
 	file, err := os.Open(filename)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// File doesn't exist yet.
-			slog.Info("No repository file found", slog.String("filename", filename))
+			slog.InfoContext(ctx, "No repository file found", slog.String("filename", filename))
 			return nil
 		}
 

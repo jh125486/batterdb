@@ -6,9 +6,9 @@
 package handlers
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 )
 
 // loggingResponseWriter is a custom HTTP response writer that captures the status code for logging purposes.
@@ -45,6 +45,12 @@ func LoggingHandler(h http.Handler) http.Handler {
 		// If it's not a WebSocket upgrade request, proceed with the logging as usual.
 		lrw := &loggingResponseWriter{ResponseWriter: w}
 		h.ServeHTTP(lrw, r)
-		slog.Info(fmt.Sprintf("%s %v %d", r.Method, r.URL.Path, lrw.StatusCode))
+
+		cleanPath := strings.ReplaceAll(r.URL.Path, "\n", "")
+		cleanPath = strings.ReplaceAll(cleanPath, "\r", "")
+		slog.InfoContext(r.Context(), "HTTP request",
+			slog.String("method", r.Method),
+			slog.String("path", cleanPath),
+			slog.Int("status", lrw.StatusCode))
 	})
 }

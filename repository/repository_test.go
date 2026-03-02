@@ -1,6 +1,7 @@
 package repository_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -353,7 +354,7 @@ func TestRepository_Load(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			repo := repository.New()
-			err := repo.Load(tt.args.filename)
+			err := repo.Load(context.Background(), tt.args.filename)
 			if tt.wantErr(t, err); err != nil {
 				return
 			}
