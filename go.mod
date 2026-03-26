@@ -7,7 +7,7 @@ require (
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
 	github.com/arl/statsviz v0.8.0
 	github.com/ccoveille/go-safecast/v2 v2.0.0
-	github.com/danielgtaylor/huma/v2 v2.37.2
+	github.com/danielgtaylor/huma/v2 v2.37.3
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
